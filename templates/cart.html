@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Cart{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">Your Shopping Cart</h1>
+    {% if cart_items %}
+    <button
+      id="clear-cart-btn"
+      class="mt-4 md:mt-0 text-red-500 hover:text-red-700 font-medium flex items-center transition"
+      aria-label="Clear entire cart"
+    >
+      <i class="fas fa-trash-alt mr-1.5"></i> Clear Cart
+    </button>
+    {% endif %}
+  </div>
+  
+  {% if cart_items %}
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Price</th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remove</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for item in cart_items %}
+        <tr class="cart-item" data-product-id="{{ item.id }}">
+          <td class="px-4 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+              <div class="flex-shrink-0 h-16 w-16 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
+                <img class="h-full w-full object-contain p-1" src="{{ item.image }}" alt="{{ item.name }}">
+              </div>
+              <div class="ml-4">
+                <div class="font-medium text-gray-900">{{ item.name }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-4 whitespace-nowrap hidden sm:table-cell text-gray-900">
+            ₹{{ item.price }}
+          </td>
+          <td class="px-4 py-4 whitespace-nowrap">
+            <div class="flex items-center border rounded-lg overflow-hidden w-28">
+              <button
+                class="quantity-dec px-2.5 py-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                data-product-id="{{ item.id }}"
+                {% if item.quantity <= 1 %}disabled{% endif %}
+                aria-label="Decrease {{ item.name }} quantity"
+              >
+                <i class="fas fa-minus text-gray-600"></i>
+              </button>
+              <span class="px-3 py-1 border-x text-center w-9 font-medium cart-quantity">{{ item.quantity }}</span>
+              <button
+                class="quantity-inc px-2.5 py-1 hover:bg-gray-100 transition"
+                data-product-id="{{ item.id }}"
+                aria-label="Increase {{ item.name }} quantity"
+              >
+                <i class="fas fa-plus text-primary"></i>
+              </button>
+            </div>
+          </td>
+          <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
+            ₹{{ item.price * item.quantity }}
+          </td>
+          <td class="px-4 py-4 whitespace-nowrap">
+            <button
+              class="remove-item text-red-500 hover:text-red-700 p-1 transition"
+              data-product-id="{{ item.id }}"
+              aria-label="Remove {{ item.name }} from cart"
+            >
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    
+    <div class="p-6 bg-gray-50 border-t">
+      <div class="flex flex-col sm:flex-row sm:justify-between">
+        <div class="space-y-2 mb-4 sm:mb-0">
+          <div class="flex justify-between text-gray-600">
+            <span>Subtotal ({{ cart_items|sum(attribute='quantity') }} items):</span>
+            <span class="font-medium">₹{{ subtotal }}</span>
+          </div>
+          <div class="flex justify-between text-gray-600">
+            <span>Shipping:</span>
+            <span class="font-medium">Calculated at checkout</span>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-2xl font-bold text-gray-900 mb-2">Total: ₹{{ subtotal }}</div>
+          <a
+            href="{{ url_for('personal_detail') }}"
+            class="inline-block bg-primary hover:bg-primary-dark text-white font-bold py-3 px-8 rounded-xl text-lg transition shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            aria-label="Proceed to checkout"
+          >
+            Proceed to Checkout
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  {% else %}
+  <div class="bg-white rounded-xl shadow p-12 text-center">
+    <i class="fas fa-shopping-cart text-6xl text-gray-300 mb-4" aria-hidden="true"></i>
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
+    <p class="text-gray-600 mb-6">Add items to see them here</p>
+    <a
+      href="{{ url_for('products') }}"
+      class="inline-block bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-medium transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+    >
+      <i class="fas fa-arrow-left mr-2"></i> Continue Shopping
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // RELIABLE CART OPERATIONS - Direct API calls with reload
+  const handleCartUpdate = async (productId, newQuantity, actionName) => {
+    try {
+      const response = await fetch('/api/cart/update', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ 
+          product_id: productId, 
+          quantity: newQuantity 
+        }),
+        credentials: 'same-origin'
+      });
+      
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Update failed');
+      
+      // RELOAD to ensure 100% UI consistency (subtotal, badge, counts)
+      window.location.reload();
+    } catch (error) {
+      console.error(`${actionName} failed:`, error);
+      if (window.globalCart?.showToast) {
+        window.globalCart.showToast(error.message || `Failed to ${actionName.toLowerCase()}`, 'error');
+      }
+    }
+  };
+  
+  // Quantity controls
+  document.querySelectorAll('.quantity-dec, .quantity-inc').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const productId = parseInt(button.closest('[data-product-id]').dataset.productId);
+      const row = button.closest('tr');
+      const qtySpan = row.querySelector('.cart-quantity');
+      const currentQty = parseInt(qtySpan.textContent);
+      const isIncrement = button.classList.contains('quantity-inc');
+      const newQty = isIncrement ? currentQty + 1 : Math.max(0, currentQty - 1);
+      
+      if (newQty === 0) {
+        if (!confirm('Remove this item from cart?')) return;
+        handleCartUpdate(productId, 0, 'Remove item');
+      } else {
+        handleCartUpdate(productId, newQty, isIncrement ? 'Increase quantity' : 'Decrease quantity');
+      }
+    });
+  });
+  
+  // Remove item button
+  document.querySelectorAll('.remove-item').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (!confirm('Remove this item from cart?')) return;
+      
+      const productId = parseInt(button.closest('[data-product-id]').dataset.productId);
+      handleCartUpdate(productId, 0, 'Remove item');
+    });
+  });
+  
+  // Clear cart button
+  document.getElementById('clear-cart-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!confirm('Clear your entire cart? This cannot be undone.')) return;
+    
+    try {
+      const response = await fetch('/api/cart/clear', { 
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Clear failed');
+      
+      window.location.reload();
+    } catch (error) {
+      console.error('Clear cart failed:', error);
+      if (window.globalCart?.showToast) {
+        window.globalCart.showToast(error.message || 'Failed to clear cart', 'error');
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

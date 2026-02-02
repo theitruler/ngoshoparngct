@@ -1,0 +1,30 @@
+    [
+  {
+    "id": 1,
+    "name": "Wireless Earbuds",
+    "price": 2499,
+    "image": "https://via.placeholder.com/150/92c952?text=Earbuds",
+    "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof"
+  },
+  {
+    "id": 2,
+    "name": "Smart Apple",
+    "price": 4999,
+    "image": "https://via.placeholder.com/150/771796?text=Watch",
+    "description": "Heart rate monitor, GPS, 7-day battery"
+  },
+  {
+    "id": 3,
+    "name": "Laptop Sleeve",
+    "price": 899,
+    "image": "https://via.placeholder.com/150/d32776?text=Sleeve",
+    "description": "Water-resistant, fits 15-inch laptops"
+  },
+  {
+    "id": 4,
+    "name": "Ashish",
+    "price": 10000,
+    "image": "https://via.placeholder.com/150/d32776?text=Sleeve",
+    "description": "Water-resistant, fits 15-inch laptops"
+  }
+]
