@@ -95,6 +95,16 @@ this.init();
 async init() {
 // ALWAYS fetch fresh state on load (bypass cache)
 await this.refreshCartState();
+
+// ✅ CRITICAL FIX: Dispatch globalCartSync AFTER initial load
+document.dispatchEvent(new CustomEvent('globalCartSync', {
+detail: {
+cartState: { ...this.cartState },
+cartCount: Object.keys(this.cartState).length,
+source: 'initial_load'
+}
+}));
+
 // Listen for cart operations from ANY component
 document.addEventListener('cartAction', async (e) => {
 if (this.syncing) return;
@@ -148,10 +158,19 @@ this.showToast(error.message || 'Update failed. Please try again.', 'error');
 this.syncing = false;
 }
 });
+
 // Handle page visibility changes (tab switch/back button)
 document.addEventListener('visibilitychange', () => {
 if (document.visibilityState === 'visible' && !this.syncing) {
-this.refreshCartState();
+this.refreshCartState().then(() => {
+document.dispatchEvent(new CustomEvent('globalCartSync', {
+detail: {
+cartState: { ...this.cartState },
+cartCount: Object.keys(this.cartState).length,
+source: 'visibility_change'
+}
+}));
+});
 }
 });
 }
