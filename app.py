@@ -25,7 +25,6 @@ if os.getenv('FLASK_ENV', 'production').strip().lower() == 'development' and os.
 # ======================
 FLASK_ENV = os.getenv('FLASK_ENV', 'production').strip().lower()
 IS_DEV = FLASK_ENV == 'development'
-
 app = Flask(__name__)
 
 # SECRET_KEY HANDLING WITH STRICT VALIDATION
@@ -70,6 +69,20 @@ except json.JSONDecodeError as e:
     print(f"❌ ERROR: Invalid products.json format: {str(e)}", file=sys.stderr)
 
 # ======================
+# COUPON LOADING
+# ======================
+try:
+    with open('coupons.json') as f:
+        COUPONS = json.load(f)
+except FileNotFoundError:
+    COUPONS = {"50_percent": [], "25_percent": []}
+    if IS_DEV:
+        print("⚠️  WARNING: coupons.json not found. Coupon validation disabled.", file=sys.stderr)
+except json.JSONDecodeError as e:
+    COUPONS = {"50_percent": [], "25_percent": []}
+    print(f"❌ ERROR: Invalid coupons.json format: {str(e)}", file=sys.stderr)
+
+# ======================
 # SESSION MANAGEMENT
 # ======================
 @app.before_request
@@ -100,7 +113,6 @@ def add_to_cart():
         data = request.get_json()
         if not data or 'product_id' not in data:
             return jsonify({'success': False, 'error': 'Invalid request payload'}), 400
-        
         product_id = int(data['product_id'])
         quantity = int(data.get('quantity', 1))
         if quantity < 1:
@@ -148,7 +160,6 @@ def update_cart():
         data = request.get_json()
         if not data or 'product_id' not in data or 'quantity' not in data:
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
-        
         product_id = int(data['product_id'])
         new_quantity = int(data['quantity'])
         if new_quantity < 0:
@@ -213,6 +224,43 @@ def clear_cart():
     except Exception as e:
         app.logger.error(f"Cart clear error: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to clear cart'}), 500
+
+# ======================
+# COUPON VALIDATION API
+# ======================
+@app.route('/api/coupon/validate', methods=['POST'])
+def validate_coupon():
+    try:
+        data = request.get_json()
+        code = data.get('code', '').strip().upper()
+        subtotal = float(data.get('subtotal', 0))
+
+        if not code:
+            return jsonify({'success': False, 'error': 'Coupon code is required'}), 400
+
+        if code in COUPONS.get('50_percent', []):
+            discount_percent = 50
+        elif code in COUPONS.get('25_percent', []):
+            discount_percent = 25
+        else:
+            return jsonify({'success': False, 'error': 'Invalid or expired coupon'}), 400
+
+        discount_amount = round(subtotal * (discount_percent / 100), 2)
+        final_amount = subtotal - discount_amount
+
+        return jsonify({
+            'success': True,
+            'discount_percent': discount_percent,
+            'discount_amount': discount_amount,
+            'final_amount': final_amount,
+            'message': f'{discount_percent}% discount applied!'
+        })
+
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid subtotal value'}), 400
+    except Exception as e:
+        app.logger.error(f"Coupon validation error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 # ======================
 # PAGE ROUTES (CRITICAL FIX: TEMPLATE NAME)
@@ -301,14 +349,14 @@ if __name__ == '__main__':
         with open('products.json', 'w') as f:
             json.dump(sample_products, f, indent=2)
         print("✓ Created sample products.json", file=sys.stderr)
-    
+
     # BLOCK PRODUCTION EXECUTION VIA python app.py
     if not IS_DEV:
         print("\n❌ CRITICAL: DO NOT RUN WITH 'python app.py' IN PRODUCTION", file=sys.stderr)
         print("✅ DEPLOY WITH GUNICORN INSTEAD:", file=sys.stderr)
         print("   gunicorn -w 4 -b 0.0.0.0:$PORT app:app\n", file=sys.stderr)
         sys.exit(1)
-    
+
     port = int(os.getenv('PORT', 3000))
     host = os.getenv('HOST', '0.0.0.0')
     print(f"\n🚀 Starting DEVELOPMENT server at http://{host}:{port}", file=sys.stderr)
