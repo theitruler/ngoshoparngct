@@ -1,15 +1,13 @@
 import os
 import sys
 import json
+import uuid
+import requests
 from flask import Flask, render_template, session, jsonify, request, redirect, url_for
 
 # ======================
 # CONDITIONAL .ENV LOADING (DEV ONLY - SAFE FOR PRODUCTION)
 # ======================
-# ONLY loads .env if:
-#   1. Explicitly in development mode (FLASK_ENV=development)
-#   2. .env file exists
-#   3. python-dotenv is installed (optional dev dependency)
 if os.getenv('FLASK_ENV', 'production').strip().lower() == 'development' and os.path.exists('.env'):
     try:
         from dotenv import load_dotenv
@@ -29,13 +27,11 @@ app = Flask(__name__)
 
 # SECRET_KEY HANDLING WITH STRICT VALIDATION
 if IS_DEV:
-    # Allow dev key ONLY in development
     app.secret_key = os.getenv('SECRET_KEY', 'secretcode')
     app.config['TEMPLATES_AUTO_RELOAD'] = True
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
     print(f"🚀 DEVELOPMENT MODE ACTIVE (FLASK_ENV={FLASK_ENV})", file=sys.stderr)
 else:
-    # PRODUCTION: Enforce strong SECRET_KEY
     secret = os.getenv('SECRET_KEY', 'RcnaZ6u0dC3xlnu6WDiTZrcPochP0WR6I/CxiGmNV6/jDBkWTtCpc0HeZ4zxPMcS').strip()
     if not secret:
         raise ValueError(
@@ -51,7 +47,7 @@ else:
         )
     app.secret_key = secret
     app.config['TEMPLATES_AUTO_RELOAD'] = False
-    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600  # 1 hour cache
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
     print(f"🔒 PRODUCTION MODE ACTIVE (FLASK_ENV={FLASK_ENV})", file=sys.stderr)
 
 # ======================
@@ -88,23 +84,21 @@ except json.JSONDecodeError as e:
 @app.before_request
 def init_cart():
     if 'cart' not in session:
-        session['cart'] = []  # Format: [{"id": int, "name": str, "price": int, "quantity": int, "image": str}, ...]
+        session['cart'] = []
 
 # ======================
 # API ENDPOINTS (CRITICAL FIXES)
 # ======================
 @app.route('/api/cart/state')
 def get_cart_state():
-    """Return current cart state WITH cart_dict for frontend sync"""
     cart = session.get('cart', [])
     distinct_count = len(cart)
-    # CRITICAL FIX: Return cart_dict for JavaScript synchronization
     cart_dict = {item['id']: item['quantity'] for item in cart}
     return jsonify({
         'success': True,
         'cart': cart,
         'distinct_count': distinct_count,
-        'cart_dict': cart_dict  # ESSENTIAL FOR FRONTEND SYNC
+        'cart_dict': cart_dict
     })
 
 @app.route('/api/cart/add', methods=['POST'])
@@ -117,11 +111,9 @@ def add_to_cart():
         quantity = int(data.get('quantity', 1))
         if quantity < 1:
             return jsonify({'success': False, 'error': 'Quantity must be at least 1'}), 400
-        
         product = next((p for p in PRODUCTS if p['id'] == product_id), None)
         if not product:
             return jsonify({'success': False, 'error': 'Product not found in catalog'}), 404
-        
         cart = session.get('cart', [])
         for item in cart:
             if item['id'] == product_id:
@@ -137,18 +129,16 @@ def add_to_cart():
             })
         session['cart'] = cart
         session.modified = True
-        
-        # CRITICAL FIX: Return cart_dict for frontend sync
         cart_dict = {item['id']: item['quantity'] for item in cart}
         distinct_count = len(cart)
         return jsonify({
             'success': True,
             'cart_count': distinct_count,
-            'cart_dict': cart_dict,  # ADDED FOR SYNC
+            'cart_dict': cart_dict,
             'message': f"{product['name']} added to cart!",
             'quantity': next(item['quantity'] for item in cart if item['id'] == product_id)
         })
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         return jsonify({'success': False, 'error': 'Invalid data format'}), 400
     except Exception as e:
         app.logger.error(f"Cart add error: {str(e)}")
@@ -164,10 +154,8 @@ def update_cart():
         new_quantity = int(data['quantity'])
         if new_quantity < 0:
             return jsonify({'success': False, 'error': 'Invalid quantity value'}), 400
-        
         cart = session.get('cart', [])
         item_found = False
-        
         if new_quantity == 0:
             original_length = len(cart)
             cart = [item for item in cart if item['id'] != product_id]
@@ -179,7 +167,6 @@ def update_cart():
                     item_found = True
                     break
             if not item_found:
-                # Add item if not found (handles edge cases)
                 product = next((p for p in PRODUCTS if p['id'] == product_id), None)
                 if not product:
                     return jsonify({'success': False, 'error': 'Product not found'}), 404
@@ -191,25 +178,21 @@ def update_cart():
                     'image': product['image']
                 })
                 item_found = True
-        
         session['cart'] = cart
         session.modified = True
-        
-        # CRITICAL FIX: Return cart_dict for frontend sync
         cart_dict = {item['id']: item['quantity'] for item in cart}
         distinct_count = len(cart)
         subtotal = sum(item['price'] * item['quantity'] for item in cart)
         item_total = next((item['price'] * item['quantity'] for item in cart if item['id'] == product_id), 0) if new_quantity > 0 else 0
-        
         return jsonify({
             'success': True,
             'cart_count': distinct_count,
-            'cart_dict': cart_dict,  # ADDED FOR SYNC
+            'cart_dict': cart_dict,
             'subtotal': subtotal,
             'item_total': item_total,
             'quantity': new_quantity if new_quantity > 0 else 0
         })
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         return jsonify({'success': False, 'error': 'Invalid data format'}), 400
     except Exception as e:
         app.logger.error(f"Cart update error: {str(e)}")
@@ -225,29 +208,22 @@ def clear_cart():
         app.logger.error(f"Cart clear error: {str(e)}")
         return jsonify({'success': False, 'error': 'Failed to clear cart'}), 500
 
-# ======================
-# COUPON VALIDATION API
-# ======================
 @app.route('/api/coupon/validate', methods=['POST'])
 def validate_coupon():
     try:
         data = request.get_json()
         code = data.get('code', '').strip().upper()
         subtotal = float(data.get('subtotal', 0))
-
         if not code:
             return jsonify({'success': False, 'error': 'Coupon code is required'}), 400
-
         if code in COUPONS.get('50_percent', []):
             discount_percent = 50
         elif code in COUPONS.get('25_percent', []):
             discount_percent = 25
         else:
             return jsonify({'success': False, 'error': 'Invalid or expired coupon'}), 400
-
         discount_amount = round(subtotal * (discount_percent / 100), 2)
         final_amount = subtotal - discount_amount
-
         return jsonify({
             'success': True,
             'discount_percent': discount_percent,
@@ -255,7 +231,6 @@ def validate_coupon():
             'final_amount': final_amount,
             'message': f'{discount_percent}% discount applied!'
         })
-
     except (ValueError, TypeError):
         return jsonify({'success': False, 'error': 'Invalid subtotal value'}), 400
     except Exception as e:
@@ -263,13 +238,12 @@ def validate_coupon():
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 # ======================
-# PAGE ROUTES (CRITICAL FIX: TEMPLATE NAME)
+# PAGE ROUTES
 # ======================
 @app.route('/')
 def products():
     cart = session.get('cart', [])
     cart_dict = {item['id']: item['quantity'] for item in cart}
-    # CRITICAL FIX: Changed from 'products.html' to 'product.html' (singular)
     return render_template('products.html', products=PRODUCTS, cart_dict=cart_dict)
 
 @app.route('/product/<int:pid>')
@@ -299,14 +273,129 @@ def personal_detail():
         return redirect(url_for('cart'))
     return render_template('personal_detail.html')
 
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# UPDATED ROUTE: Added 'id' (UUID) and 'payment': False to webhook payload
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+@app.route('/personal-detail/submit', methods=['POST'])
+def submit_personal_detail():
+    cart_items = session.get('cart', [])
+    if not cart_items:
+        return redirect(url_for('cart'))
+    full_name = request.form.get('full_name', '').strip()
+    address = request.form.get('address', '').strip()
+    city = request.form.get('city', '').strip()
+    postal_code = request.form.get('postal_code', '').strip()
+    phone = request.form.get('phone', '').strip()
+
+    if not all([full_name, address, city, postal_code, phone]):
+        return redirect(url_for('error_page', message='All personal details are required.'))
+
+    subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
+    total = subtotal
+
+    # ✅ Generate a unique order ID
+    order_id = str(uuid.uuid4())
+
+    # Prepare webhook payload with new fields
+    webhook_payload = {
+        "id": order_id,  # <-- UNIQUE ORDER ID
+        "payment": False,  # <-- PAYMENT STATUS (DEFAULT: FALSE)
+        "personal_details": {
+            "full_name": full_name,
+            "address": address,
+            "city": city,
+            "postal_code": postal_code,
+            "phone": phone
+        },
+        "order": {
+            "items": [
+                {
+                    "id": item['id'],
+                    "name": item['name'],
+                    "price": item['price'],
+                    "quantity": item['quantity'],
+                    "total_price": item['price'] * item['quantity']
+                }
+                for item in cart_items
+            ],
+            "subtotal": subtotal,
+            "total": total,
+            "currency": "INR"
+        }
+    }
+
+    # Send to webhook if URL is configured
+    webhook_url = 'http://n8n-x0owwcgwcg4s4o8w4g80g4go.93.127.185.52.sslip.io/webhook/demo'
+    if webhook_url:
+        try:
+            response = requests.post(
+                webhook_url,
+                json=webhook_payload,
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
+            if response.status_code not in (200, 201, 202, 204):
+                app.logger.warning(f"Webhook returned {response.status_code}: {response.text}")
+        except Exception as e:
+            app.logger.error(f"Webhook delivery failed: {str(e)}")
+    else:
+        app.logger.warning("WEBHOOK_URL not set – skipping webhook")
+
+    # Store in session (optional)
+    session['personal_details'] = {
+        'full_name': full_name,
+        'address': address,
+        'city': city,
+        'postal_code': postal_code,
+        'phone': phone
+    }
+    session.modified = True
+
+    # Redirect to payment page
+    return redirect(url_for('payment'))
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 @app.route('/payment')
 def payment():
     cart_items = session.get('cart', [])
     if not cart_items:
         return redirect(url_for('cart'))
+    
     subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
     amount_paise = int(subtotal * 100)
-    return render_template('payment.html', amount=amount_paise)
+    
+    personal_details = session.get('personal_details', {})
+    
+    return render_template(
+        'payment.html',
+        amount=amount_paise,
+        full_name=personal_details.get('full_name', ''),
+        phone=personal_details.get('phone', '')
+    )
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# PAYMENT SUCCESS HANDLER: Clear cart & redirect to home
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+@app.route('/payment/success', methods=['POST'])
+def payment_success():
+    try:
+        data = request.get_json()
+        if not data or 'razorpay_payment_id' not in data:
+            app.logger.warning("Invalid payment success payload")
+            return jsonify({'success': False}), 400
+
+        # Optional: In production, verify Razorpay signature here using RAZORPAY_KEY_SECRET
+
+        # Clear cart and personal details from session
+        session.pop('cart', None)
+        session.pop('personal_details', None)
+        session.modified = True
+
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        app.logger.error(f"Payment success handler error: {str(e)}")
+        return jsonify({'success': False}), 500
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 @app.route('/error')
 def error_page():
@@ -336,10 +425,9 @@ def health_check():
     }), 200
 
 # ======================
-# DEVELOPMENT SERVER (BLOCK IN PRODUCTION)
+# DEVELOPMENT SERVER
 # ======================
 if __name__ == '__main__':
-    # AUTO-GENERATE SAMPLE DATA IN DEV ONLY
     if IS_DEV and not os.path.exists('products.json'):
         sample_products = [
             {"id": 1, "name": "Wireless Earbuds", "price": 2499, "image": "https://via.placeholder.com/150/92c952?text=Earbuds", "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof"},
@@ -350,7 +438,6 @@ if __name__ == '__main__':
             json.dump(sample_products, f, indent=2)
         print("✓ Created sample products.json", file=sys.stderr)
 
-    # BLOCK PRODUCTION EXECUTION VIA python app.py
     if not IS_DEV:
         print("\n❌ CRITICAL: DO NOT RUN WITH 'python app.py' IN PRODUCTION", file=sys.stderr)
         print("✅ DEPLOY WITH GUNICORN INSTEAD:", file=sys.stderr)

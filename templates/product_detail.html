@@ -2,165 +2,158 @@
 {% block title %}{{ product.name }}{% endblock %}
 {% block content %}
 <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-<div class="md:flex">
-<div class="md:flex-shrink-0 p-6 flex items-center justify-center bg-gray-50">
-<img class="h-80 max-w-full object-contain" src="{{ product.image }}" alt="{{ product.name }}">
+  <div class="md:flex">
+    <div class="md:flex-shrink-0 p-6 flex items-center justify-center bg-gray-50">
+      <img class="h-80 max-w-full object-contain" src="{{ product.image }}" alt="{{ product.name }}">
+    </div>
+    <div class="p-6 md:p-8 flex flex-col">
+      <h1 class="text-2xl md:text-3xl font-bold text-gray-900">{{ product.name }}</h1>
+      <p class="mt-3 text-gray-600 text-lg">₹{{ product.price }}</p>
+      <div class="mt-5 text-gray-700 leading-relaxed">
+        <p>{{ product.description }}</p>
+      </div>
+      <div class="mt-8 pt-6 border-t border-gray-200 space-y-2">
+        <h2 class="font-semibold text-gray-900 flex items-center">
+          <i class="fas fa-truck text-primary mr-2"></i> Delivery & Returns
+        </h2>
+        <ul class="space-y-1.5 text-gray-600 text-sm">
+          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> Free shipping on orders over ₹500</li>
+          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> 30-day easy returns</li>
+          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> Cash on delivery available</li>
+        </ul>
+      </div>
+
+      <!-- ACTION CONTAINER -->
+      <div class="mt-8 pt-4 border-t border-gray-200" id="product-action-container">
+        {% if in_cart %}
+        <div class="flex items-center justify-between max-w-xs mx-auto w-full">
+          <span class="text-gray-700 font-medium">In Cart:</span>
+          <div class="flex items-center border rounded-lg overflow-hidden">
+            <button id="dec-btn" class="px-3 py-2 hover:bg-gray-100 {% if cart_quantity <= 1 %}disabled:opacity-50{% endif %}"
+              {% if cart_quantity <= 1 %}disabled{% endif %}>
+              <i class="fas fa-minus text-gray-600"></i>
+            </button>
+            <span id="quantity-display" class="px-4 py-2 font-bold">{{ cart_quantity }}</span>
+            <button id="inc-btn" class="px-3 py-2 hover:bg-gray-100">
+              <i class="fas fa-plus text-primary"></i>
+            </button>
+          </div>
+        </div>
+        <a href="{{ url_for('cart') }}"
+          class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-center transition flex items-center justify-center">
+          <i class="fas fa-shopping-cart mr-2"></i> Go to Cart
+        </a>
+        {% else %}
+        <button
+          id="add-to-cart-btn"
+          class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-lg transition flex items-center justify-center shadow-md hover:shadow-lg">
+          <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
-<div class="p-6 md:p-8 flex flex-col">
-<h1 class="text-2xl md:text-3xl font-bold text-gray-900">{{ product.name }}</h1>
-<p class="mt-3 text-gray-600 text-lg">₹{{ product.price }}</p>
-<div class="mt-5 text-gray-700 leading-relaxed">
-<p>{{ product.description }}</p>
-</div>
-<div class="mt-8 pt-6 border-t border-gray-200 space-y-2">
-<h2 class="font-semibold text-gray-900 flex items-center">
-<i class="fas fa-truck text-primary mr-2"></i> Delivery & Returns
-</h2>
-<ul class="space-y-1.5 text-gray-600 text-sm">
-<li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> Free shipping on orders over ₹500</li>
-<li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> 30-day easy returns</li>
-<li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> Cash on delivery available</li>
-</ul>
-</div>
-<!-- ACTION CONTAINER -->
-<div class="mt-8 pt-4 border-t border-gray-200" id="product-action-container">
-{% if in_cart %}
-<div class="flex items-center justify-between max-w-xs mx-auto w-full">
-<span class="text-gray-700 font-medium">In Cart:</span>
-<div class="flex items-center border rounded-lg overflow-hidden">
-<button id="dec-btn" class="px-3 py-2 hover:bg-gray-100 {% if cart_quantity <= 1 %}disabled:opacity-50{% endif %}"
-{% if cart_quantity <= 1 %}disabled{% endif %}>
-<i class="fas fa-minus text-gray-600"></i>
-</button>
-<span id="quantity-display" class="px-4 py-2 font-bold">{{ cart_quantity }}</span>
-<button id="inc-btn" class="px-3 py-2 hover:bg-gray-100">
-<i class="fas fa-plus text-primary"></i>
-</button>
-</div>
-</div>
-<a href="{{ url_for('cart') }}"
-class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-center transition flex items-center justify-center">
-<i class="fas fa-shopping-cart mr-2"></i> Go to Cart
-</a>
-{% else %}
-<button
-id="add-to-cart-btn"
-class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-lg transition flex items-center justify-center shadow-md hover:shadow-lg"
->
-<i class="fas fa-cart-plus mr-2"></i> Add to Cart
-</button>
-{% endif %}
-</div>
-</div>
-</div>
-</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-const productId = {{ product.id }};
-const actionContainer = document.getElementById('product-action-container');
-// Initialize quantity controls if in cart
-{% if in_cart %}
-const decBtn = document.getElementById('dec-btn');
-const incBtn = document.getElementById('inc-btn');
-const qtyDisplay = document.getElementById('quantity-display');
-let currentQty = {{ cart_quantity }};
-decBtn.addEventListener('click', () => {
-if (currentQty > 1) {
-currentQty--;
-qtyDisplay.textContent = currentQty;
-decBtn.disabled = (currentQty <= 1);
-decBtn.classList.toggle('disabled:opacity-50', currentQty <= 1);
-// CRITICAL FIX: Use globalCart instead of cartManager
-window.globalCart.updateItemQuantity(productId, currentQty);
-} else {
-// Remove item and revert to add button
-// CRITICAL FIX: Use globalCart instead of cartManager
-window.globalCart.updateItemQuantity(productId, 0).then(() => {
-renderAddButton();
-});
-}
-});
-incBtn.addEventListener('click', () => {
-currentQty++;
-qtyDisplay.textContent = currentQty;
-decBtn.disabled = false;
-decBtn.classList.remove('disabled:opacity-50');
-// CRITICAL FIX: Use globalCart instead of cartManager
-window.globalCart.updateItemQuantity(productId, currentQty);
-});
-function renderAddButton() {
-actionContainer.innerHTML = `
-<button id="add-to-cart-btn" class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-lg transition flex items-center justify-center shadow-md hover:shadow-lg">
-<i class="fas fa-cart-plus mr-2"></i> Add to Cart
-</button>
-<a href="${window.location.origin}/products" class="mt-3 w-full text-center py-2 text-gray-600 hover:text-primary font-medium transition">
-← Continue Shopping
-</a>
-`;
-document.getElementById('add-to-cart-btn').addEventListener('click', handleAddToCart);
-}
-{% endif %}
-// Add to cart handler
-function handleAddToCart() {
-const btn = document.getElementById('add-to-cart-btn');
-const originalHTML = btn.innerHTML;
-btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
-btn.disabled = true;
-// CRITICAL FIX: Use globalCart instead of cartManager
-window.globalCart.addToCart(productId, 1)
-.then(() => {
-// Render quantity controls
-actionContainer.innerHTML = `
-<div class="flex items-center justify-between max-w-xs mx-auto w-full">
-<span class="text-gray-700 font-medium">In Cart:</span>
-<div class="flex items-center border rounded-lg overflow-hidden">
-<button id="dec-btn" class="px-3 py-2 hover:bg-gray-100">
-<i class="fas fa-minus text-gray-600"></i>
-</button>
-<span id="quantity-display" class="px-4 py-2 font-bold">1</span>
-<button id="inc-btn" class="px-3 py-2 hover:bg-gray-100">
-<i class="fas fa-plus text-primary"></i>
-</button>
-</div>
-</div>
-<a href="/cart" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-center transition flex items-center justify-center">
-<i class="fas fa-shopping-cart mr-2"></i> Go to Cart
-</a>
-<a href="/products" class="mt-3 w-full text-center py-2 text-gray-600 hover:text-primary font-medium transition">
-← Continue Shopping
-</a>
-`;
-// Re-initialize controls
-let qty = 1;
-document.getElementById('dec-btn').addEventListener('click', () => {
-if (qty > 1) {
-qty--;
-document.getElementById('quantity-display').textContent = qty;
-document.getElementById('dec-btn').disabled = (qty <= 1);
-// CRITICAL FIX: Use globalCart instead of cartManager
-window.globalCart.updateItemQuantity(productId, qty);
-} else {
-renderAddButton();
-// CRITICAL FIX: Use globalCart instead of cartManager
-window.globalCart.updateItemQuantity(productId, 0);
-}
-});
-document.getElementById('inc-btn').addEventListener('click', () => {
-qty++;
-document.getElementById('quantity-display').textContent = qty;
-document.getElementById('dec-btn').disabled = false;
-// CRITICAL FIX: Use globalCart instead of cartManager
-window.globalCart.updateItemQuantity(productId, qty);
-});
-})
-.catch(() => {
-btn.innerHTML = originalHTML;
-btn.disabled = false;
-});
-}
-{% if not in_cart %}
-document.getElementById('add-to-cart-btn').addEventListener('click', handleAddToCart);
-{% endif %}
+  const productId = {{ product.id }};
+  const actionContainer = document.getElementById('product-action-container');
+
+  // Reusable function to render "Add to Cart" button
+  function renderAddButton() {
+    actionContainer.innerHTML = `
+      <button id="add-to-cart-btn" class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-lg transition flex items-center justify-center shadow-md hover:shadow-lg">
+        <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+      </button>
+      <a href="/products" class="mt-3 w-full text-center py-2 text-gray-600 hover:text-primary font-medium transition">
+        ← Continue Shopping
+      </a>
+    `;
+    document.getElementById('add-to-cart-btn').addEventListener('click', handleAddToCart);
+  }
+
+  // Reusable function to render quantity controls
+  function renderQuantityControls(initialQty = 1) {
+    let qty = initialQty;
+    actionContainer.innerHTML = `
+      <div class="flex items-center justify-between max-w-xs mx-auto w-full">
+        <span class="text-gray-700 font-medium">In Cart:</span>
+        <div class="flex items-center border rounded-lg overflow-hidden">
+          <button id="dec-btn" class="px-3 py-2 hover:bg-gray-100 ${qty <= 1 ? 'disabled:opacity-50' : ''}" ${qty <= 1 ? 'disabled' : ''}>
+            <i class="fas fa-minus text-gray-600"></i>
+          </button>
+          <span id="quantity-display" class="px-4 py-2 font-bold">${qty}</span>
+          <button id="inc-btn" class="px-3 py-2 hover:bg-gray-100">
+            <i class="fas fa-plus text-primary"></i>
+          </button>
+        </div>
+      </div>
+      <a href="/cart" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-center transition flex items-center justify-center">
+        <i class="fas fa-shopping-cart mr-2"></i> Go to Cart
+      </a>
+      <a href="/" class="mt-3 w-full text-center py-2 text-gray-600 hover:text-primary font-medium transition">
+        ← Continue Shopping
+      </a>
+    `;
+
+    // Attach event listeners
+    document.getElementById('dec-btn').addEventListener('click', () => {
+      if (qty > 1) {
+        qty--;
+        document.getElementById('quantity-display').textContent = qty;
+        const decBtn = document.getElementById('dec-btn');
+        decBtn.disabled = (qty <= 1);
+        decBtn.classList.toggle('disabled:opacity-50', qty <= 1);
+        window.globalCart.updateItemQuantity(productId, qty);
+      } else {
+        // Remove from cart and revert to "Add" button
+        window.globalCart.updateItemQuantity(productId, 0).finally(() => {
+          renderAddButton();
+        });
+      }
+    });
+
+    document.getElementById('inc-btn').addEventListener('click', () => {
+      qty++;
+      document.getElementById('quantity-display').textContent = qty;
+      document.getElementById('dec-btn').disabled = false;
+      document.getElementById('dec-btn').classList.remove('disabled:opacity-50');
+      window.globalCart.updateItemQuantity(productId, qty);
+    });
+  }
+
+  // Handle "Add to Cart" click
+  async function handleAddToCart() {
+    const btn = document.getElementById('add-to-cart-btn');
+    if (!btn) return;
+
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
+    btn.disabled = true;
+
+    try {
+      // Wait for cart update to complete
+      await window.globalCart.addToCart(productId, 1);
+      // Only render controls AFTER success
+      renderQuantityControls(1);
+    } catch (error) {
+      console.error('Add to cart failed:', error);
+      // Restore button on error
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+      if (window.globalCart?.showToast) {
+        window.globalCart.showToast('Failed to add item. Please try again.', 'error');
+      }
+    }
+  }
+
+  // Initialize based on initial state
+  {% if in_cart %}
+    renderQuantityControls({{ cart_quantity }});
+  {% else %}
+    document.getElementById('add-to-cart-btn')?.addEventListener('click', handleAddToCart);
+  {% endif %}
 });
 </script>
 {% endblock %}

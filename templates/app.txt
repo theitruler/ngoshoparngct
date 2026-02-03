@@ -1,0 +1,1523 @@
+
+
+
+---app.py---
+
+
+
+import os
+import sys
+import json
+import uuid  # <-- ADDED FOR UNIQUE ID GENERATION
+import requests
+from flask import Flask, render_template, session, jsonify, request, redirect, url_for
+
+# ======================
+# CONDITIONAL .ENV LOADING (DEV ONLY - SAFE FOR PRODUCTION)
+# ======================
+if os.getenv('FLASK_ENV', 'production').strip().lower() == 'development' and os.path.exists('.env'):
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        if '--no-dotenv' not in sys.argv:
+            print("✓ Loaded configuration from .env file", file=sys.stderr)
+    except ImportError:
+        print("⚠️  WARNING: Install python-dotenv for .env support:", file=sys.stderr)
+        print("   pip install python-dotenv", file=sys.stderr)
+
+# ======================
+# ENVIRONMENT CONFIGURATION
+# ======================
+FLASK_ENV = os.getenv('FLASK_ENV', 'production').strip().lower()
+IS_DEV = FLASK_ENV == 'development'
+app = Flask(__name__)
+
+# SECRET_KEY HANDLING WITH STRICT VALIDATION
+if IS_DEV:
+    app.secret_key = os.getenv('SECRET_KEY', 'secretcode')
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    print(f"🚀 DEVELOPMENT MODE ACTIVE (FLASK_ENV={FLASK_ENV})", file=sys.stderr)
+else:
+    secret = os.getenv('SECRET_KEY', 'RcnaZ6u0dC3xlnu6WDiTZrcPochP0WR6I/CxiGmNV6/jDBkWTtCpc0HeZ4zxPMcS').strip()
+    if not secret:
+        raise ValueError(
+            "\n❌ SECURITY ERROR: SECRET_KEY not set in production!\n"
+            "✅ Fix: Set SECRET_KEY via hosting platform environment variables\n"
+            "   Generate strong key: openssl rand -base64 48\n"
+        )
+    if secret == 'dev-key-change-in-production-2026' or len(secret) < 32:
+        raise ValueError(
+            "\n❌ SECURITY VIOLATION: Weak SECRET_KEY detected in production!\n"
+            "✅ Fix: Generate strong key with: openssl rand -base64 48\n"
+            "   NEVER use default/dev keys in production!\n"
+        )
+    app.secret_key = secret
+    app.config['TEMPLATES_AUTO_RELOAD'] = False
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
+    print(f"🔒 PRODUCTION MODE ACTIVE (FLASK_ENV={FLASK_ENV})", file=sys.stderr)
+
+# ======================
+# PRODUCT LOADING
+# ======================
+try:
+    with open('products.json') as f:
+        PRODUCTS = json.load(f)
+except FileNotFoundError:
+    PRODUCTS = []
+    if IS_DEV:
+        print("⚠️  WARNING: products.json not found. Create products.json with product data.", file=sys.stderr)
+except json.JSONDecodeError as e:
+    PRODUCTS = []
+    print(f"❌ ERROR: Invalid products.json format: {str(e)}", file=sys.stderr)
+
+# ======================
+# COUPON LOADING
+# ======================
+try:
+    with open('coupons.json') as f:
+        COUPONS = json.load(f)
+except FileNotFoundError:
+    COUPONS = {"50_percent": [], "25_percent": []}
+    if IS_DEV:
+        print("⚠️  WARNING: coupons.json not found. Coupon validation disabled.", file=sys.stderr)
+except json.JSONDecodeError as e:
+    COUPONS = {"50_percent": [], "25_percent": []}
+    print(f"❌ ERROR: Invalid coupons.json format: {str(e)}", file=sys.stderr)
+
+# ======================
+# SESSION MANAGEMENT
+# ======================
+@app.before_request
+def init_cart():
+    if 'cart' not in session:
+        session['cart'] = []
+
+# ======================
+# API ENDPOINTS (CRITICAL FIXES)
+# ======================
+@app.route('/api/cart/state')
+def get_cart_state():
+    cart = session.get('cart', [])
+    distinct_count = len(cart)
+    cart_dict = {item['id']: item['quantity'] for item in cart}
+    return jsonify({
+        'success': True,
+        'cart': cart,
+        'distinct_count': distinct_count,
+        'cart_dict': cart_dict
+    })
+
+@app.route('/api/cart/add', methods=['POST'])
+def add_to_cart():
+    try:
+        data = request.get_json()
+        if not data or 'product_id' not in data:
+            return jsonify({'success': False, 'error': 'Invalid request payload'}), 400
+        product_id = int(data['product_id'])
+        quantity = int(data.get('quantity', 1))
+        if quantity < 1:
+            return jsonify({'success': False, 'error': 'Quantity must be at least 1'}), 400
+        product = next((p for p in PRODUCTS if p['id'] == product_id), None)
+        if not product:
+            return jsonify({'success': False, 'error': 'Product not found in catalog'}), 404
+        cart = session.get('cart', [])
+        for item in cart:
+            if item['id'] == product_id:
+                item['quantity'] += quantity
+                break
+        else:
+            cart.append({
+                'id': product_id,
+                'name': product['name'],
+                'price': product['price'],
+                'quantity': quantity,
+                'image': product['image']
+            })
+        session['cart'] = cart
+        session.modified = True
+        cart_dict = {item['id']: item['quantity'] for item in cart}
+        distinct_count = len(cart)
+        return jsonify({
+            'success': True,
+            'cart_count': distinct_count,
+            'cart_dict': cart_dict,
+            'message': f"{product['name']} added to cart!",
+            'quantity': next(item['quantity'] for item in cart if item['id'] == product_id)
+        })
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid data format'}), 400
+    except Exception as e:
+        app.logger.error(f"Cart add error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route('/api/cart/update', methods=['POST'])
+def update_cart():
+    try:
+        data = request.get_json()
+        if not data or 'product_id' not in data or 'quantity' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        product_id = int(data['product_id'])
+        new_quantity = int(data['quantity'])
+        if new_quantity < 0:
+            return jsonify({'success': False, 'error': 'Invalid quantity value'}), 400
+        cart = session.get('cart', [])
+        item_found = False
+        if new_quantity == 0:
+            original_length = len(cart)
+            cart = [item for item in cart if item['id'] != product_id]
+            item_found = (len(cart) < original_length)
+        else:
+            for item in cart:
+                if item['id'] == product_id:
+                    item['quantity'] = new_quantity
+                    item_found = True
+                    break
+        if not item_found:
+            product = next((p for p in PRODUCTS if p['id'] == product_id), None)
+            if not product:
+                return jsonify({'success': False, 'error': 'Product not found'}), 404
+            cart.append({
+                'id': product_id,
+                'name': product['name'],
+                'price': product['price'],
+                'quantity': new_quantity,
+                'image': product['image']
+            })
+            item_found = True
+        session['cart'] = cart
+        session.modified = True
+        cart_dict = {item['id']: item['quantity'] for item in cart}
+        distinct_count = len(cart)
+        subtotal = sum(item['price'] * item['quantity'] for item in cart)
+        item_total = next((item['price'] * item['quantity'] for item in cart if item['id'] == product_id), 0) if new_quantity > 0 else 0
+        return jsonify({
+            'success': True,
+            'cart_count': distinct_count,
+            'cart_dict': cart_dict,
+            'subtotal': subtotal,
+            'item_total': item_total,
+            'quantity': new_quantity if new_quantity > 0 else 0
+        })
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid data format'}), 400
+    except Exception as e:
+        app.logger.error(f"Cart update error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route('/api/cart/clear', methods=['POST'])
+def clear_cart():
+    try:
+        session['cart'] = []
+        session.modified = True
+        return jsonify({'success': True, 'message': 'Cart cleared successfully', 'cart_count': 0, 'cart_dict': {}})
+    except Exception as e:
+        app.logger.error(f"Cart clear error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to clear cart'}), 500
+
+@app.route('/api/coupon/validate', methods=['POST'])
+def validate_coupon():
+    try:
+        data = request.get_json()
+        code = data.get('code', '').strip().upper()
+        subtotal = float(data.get('subtotal', 0))
+        if not code:
+            return jsonify({'success': False, 'error': 'Coupon code is required'}), 400
+        if code in COUPONS.get('50_percent', []):
+            discount_percent = 50
+        elif code in COUPONS.get('25_percent', []):
+            discount_percent = 25
+        else:
+            return jsonify({'success': False, 'error': 'Invalid or expired coupon'}), 400
+        discount_amount = round(subtotal * (discount_percent / 100), 2)
+        final_amount = subtotal - discount_amount
+        return jsonify({
+            'success': True,
+            'discount_percent': discount_percent,
+            'discount_amount': discount_amount,
+            'final_amount': final_amount,
+            'message': f'{discount_percent}% discount applied!'
+        })
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid subtotal value'}), 400
+    except Exception as e:
+        app.logger.error(f"Coupon validation error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+# ======================
+# PAGE ROUTES
+# ======================
+@app.route('/')
+def products():
+    cart = session.get('cart', [])
+    cart_dict = {item['id']: item['quantity'] for item in cart}
+    return render_template('products.html', products=PRODUCTS, cart_dict=cart_dict)
+
+@app.route('/product/<int:pid>')
+def product_detail(pid):
+    product = next((p for p in PRODUCTS if p['id'] == pid), None)
+    if not product:
+        return render_template('error.html', message="Product not found", status_code=404), 404
+    cart = session.get('cart', [])
+    cart_dict = {item['id']: item['quantity'] for item in cart}
+    return render_template(
+        'product_detail.html',
+        product=product,
+        in_cart=pid in cart_dict,
+        cart_quantity=cart_dict.get(pid, 0)
+    )
+
+@app.route('/cart')
+def cart():
+    cart_items = session.get('cart', [])
+    subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
+    return render_template('cart.html', cart_items=cart_items, subtotal=subtotal)
+
+@app.route('/personal-detail')
+def personal_detail():
+    cart_items = session.get('cart', [])
+    if not cart_items:
+        return redirect(url_for('cart'))
+    return render_template('personal_detail.html')
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# UPDATED ROUTE: Added 'id' (UUID) and 'payment': False to webhook payload
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+@app.route('/personal-detail/submit', methods=['POST'])
+def submit_personal_detail():
+    cart_items = session.get('cart', [])
+    if not cart_items:
+        return redirect(url_for('cart'))
+
+    full_name = request.form.get('full_name', '').strip()
+    address = request.form.get('address', '').strip()
+    city = request.form.get('city', '').strip()
+    postal_code = request.form.get('postal_code', '').strip()
+    phone = request.form.get('phone', '').strip()
+
+    if not all([full_name, address, city, postal_code, phone]):
+        return redirect(url_for('error_page', message='All personal details are required.'))
+
+    subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
+    total = subtotal
+
+    # ✅ Generate a unique order ID
+    order_id = str(uuid.uuid4())
+
+    # Prepare webhook payload with new fields
+    webhook_payload = {
+        "id": order_id,  # <-- UNIQUE ORDER ID
+        "payment": False,  # <-- PAYMENT STATUS (DEFAULT: FALSE)
+        "personal_details": {
+            "full_name": full_name,
+            "address": address,
+            "city": city,
+            "postal_code": postal_code,
+            "phone": phone
+        },
+        "order": {
+            "items": [
+                {
+                    "id": item['id'],
+                    "name": item['name'],
+                    "price": item['price'],
+                    "quantity": item['quantity'],
+                    "total_price": item['price'] * item['quantity']
+                }
+                for item in cart_items
+            ],
+            "subtotal": subtotal,
+            "total": total,
+            "currency": "INR"
+        }
+    }
+
+    # Send to webhook if URL is configured
+    webhook_url = 'http://n8n-x0owwcgwcg4s4o8w4g80g4go.93.127.185.52.sslip.io/webhook/demo'
+    if webhook_url:
+        try:
+            response = requests.post(
+                webhook_url,
+                json=webhook_payload,
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
+            if response.status_code not in (200, 201, 202, 204):
+                app.logger.warning(f"Webhook returned {response.status_code}: {response.text}")
+        except Exception as e:
+            app.logger.error(f"Webhook delivery failed: {str(e)}")
+    else:
+        app.logger.warning("WEBHOOK_URL not set – skipping webhook")
+
+    # Store in session (optional)
+    session['personal_details'] = {
+        'full_name': full_name,
+        'address': address,
+        'city': city,
+        'postal_code': postal_code,
+        'phone': phone
+    }
+    session.modified = True
+
+    # Redirect to payment page
+    return redirect(url_for('payment'))
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+@app.route('/payment')
+def payment():
+    cart_items = session.get('cart', [])
+    if not cart_items:
+        return redirect(url_for('cart'))
+    subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
+    amount_paise = int(subtotal * 100)
+    return render_template('payment.html', amount=amount_paise)
+
+@app.route('/error')
+def error_page():
+    message = request.args.get('message', 'An unexpected error occurred')
+    return render_template('error.html', message=message), 400
+
+# ======================
+# ERROR HANDLERS
+# ======================
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('error.html', message="Page not found", status_code=404), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    app.logger.error(f"Server error: {str(e)}")
+    return render_template('error.html', message="Internal server error", status_code=500), 500
+
+@app.route('/health')
+def health_check():
+    return jsonify({
+        'status': 'ok',
+        'environment': FLASK_ENV,
+        'debug': app.debug,
+        'cart_items': len(session.get('cart', [])),
+        'products_loaded': len(PRODUCTS)
+    }), 200
+
+# ======================
+# DEVELOPMENT SERVER
+# ======================
+if __name__ == '__main__':
+    if IS_DEV and not os.path.exists('products.json'):
+        sample_products = [
+            {"id": 1, "name": "Wireless Earbuds", "price": 2499, "image": "https://via.placeholder.com/150/92c952?text=Earbuds", "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof"},
+            {"id": 2, "name": "Smart Watch", "price": 4999, "image": "https://via.placeholder.com/150/771796?text=Watch", "description": "Heart rate monitor, GPS, 7-day battery"},
+            {"id": 3, "name": "Laptop Sleeve", "price": 899, "image": "https://via.placeholder.com/150/d32776?text=Sleeve", "description": "Water-resistant, fits 15-inch laptops"}
+        ]
+        with open('products.json', 'w') as f:
+            json.dump(sample_products, f, indent=2)
+        print("✓ Created sample products.json", file=sys.stderr)
+
+    if not IS_DEV:
+        print("\n❌ CRITICAL: DO NOT RUN WITH 'python app.py' IN PRODUCTION", file=sys.stderr)
+        print("✅ DEPLOY WITH GUNICORN INSTEAD:", file=sys.stderr)
+        print("   gunicorn -w 4 -b 0.0.0.0:$PORT app:app\n", file=sys.stderr)
+        sys.exit(1)
+
+    port = int(os.getenv('PORT', 3000))
+    host = os.getenv('HOST', '0.0.0.0')
+    print(f"\n🚀 Starting DEVELOPMENT server at http://{host}:{port}", file=sys.stderr)
+    print(f"   Environment: {FLASK_ENV} | Debug: {app.debug}", file=sys.stderr)
+    print(f"   Press CTRL+C to stop\n", file=sys.stderr)
+    app.run(debug=True, host=host, port=port)
+
+
+---base.html---
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>{% block title %}Shop{% endblock %} | SimpleCart</title>
+<!-- Preconnect to CDNs for performance -->
+<link rel="preconnect" href="https://cdn.tailwindcss.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<!-- Critical CSS inline for FCP -->
+<style>
+:root { color-scheme: light; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
+.toast { position: fixed; top: 1.25rem; right: 1.25rem; z-index: 9999; transform: translateX(25rem); transition: transform 0.3s ease-out, opacity 0.3s; opacity: 0; max-width: 20rem; }
+.toast.show { transform: translateX(0); opacity: 1; }
+.cart-badge { transition: all 0.2s ease; min-width: 1.25rem; height: 1.25rem; font-size: 0.625rem; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); } 70% { box-shadow: 0 0 0 0.5rem rgba(220, 38, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } }
+.animate-cart-pulse { animation: pulse 1.5s infinite; }
+/* Prevent layout shift during cart transitions */
+.quantity-control, .add-to-cart-btn { transition: all 0.2s ease; min-height: 2.5rem; }
+/* Production: Disable animations in prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+.toast, .cart-badge, .quantity-control, .add-to-cart-btn { transition: none !important; animation: none !important; }
+}
+</style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+tailwind.config = {
+theme: {
+extend: {
+colors: {
+primary: '#4f46e5',
+'primary-dark': '#4338ca'
+}
+}
+}
+}
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+crossorigin="anonymous" referrerpolicy="no-referrer">
+<!-- Preload critical fonts -->
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+<body class="bg-gray-50">
+<!-- Toast Notification -->
+<div id="toast" class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center">
+<i class="fas fa-check-circle mr-2"></i>
+<span id="toast-message">Item added to cart!</span>
+</div>
+<!-- Navbar -->
+<nav class="bg-white shadow-sm">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex justify-between h-16 items-center">
+<a href="{{ url_for('products') }}" class="text-2xl font-bold text-primary flex items-center">
+<i class="fas fa-shopping-bag mr-2"></i>SimpleCart
+</a>
+<div class="flex items-center space-x-6">
+<a href="{{ url_for('products') }}" class="text-gray-700 hover:text-primary font-medium hidden md:block transition">Products</a>
+<a href="{{ url_for('cart') }}" class="relative group p-1" id="cart-link" aria-label="Shopping cart">
+<i class="fas fa-shopping-cart text-xl text-gray-700 hover:text-primary transition"></i>
+{% set distinct_count = session.cart|length if session.cart else 0 %}
+{% if distinct_count > 0 %}
+<span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white rounded-full flex items-center justify-center animate-cart-pulse" id="cart-badge" aria-label="{{ distinct_count }} items in cart">
+{{ distinct_count }}
+</span>
+{% endif %}
+</a>
+</div>
+</div>
+</div>
+</nav>
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+{% block content %}{% endblock %}
+</main>
+<footer class="bg-white border-t mt-16">
+<div class="max-w-7xl mx-auto px-4 py-6 text-center text-gray-500 text-sm">
+<p>© {{ now.year if now else 2026 }} SimpleCart. All rights reserved.</p>
+<p class="mt-1 text-xs text-gray-400">Environment: <span class="font-mono">{{ 'development' if config.DEBUG else 'production' }}</span></p>
+</div>
+</footer>
+<script>
+// ======================
+// PRODUCTION-GRADE CART MANAGER
+// ======================
+class GlobalCartManager {
+constructor() {
+this.cartBadge = document.getElementById('cart-badge');
+this.cartLink = document.getElementById('cart-link');
+this.cartState = {}; // { productId: quantity }
+this.syncing = false;
+this.init();
+}
+async init() {
+// ALWAYS fetch fresh state on load (bypass cache)
+await this.refreshCartState();
+
+// ✅ CRITICAL FIX: Dispatch globalCartSync AFTER initial load
+document.dispatchEvent(new CustomEvent('globalCartSync', {
+detail: {
+cartState: { ...this.cartState },
+cartCount: Object.keys(this.cartState).length,
+source: 'initial_load'
+}
+}));
+
+// Listen for cart operations from ANY component
+document.addEventListener('cartAction', async (e) => {
+if (this.syncing) return;
+const { productId, quantity, action } = e.detail;
+try {
+this.syncing = true;
+let endpoint, payload;
+if (action === 'add') {
+endpoint = '/api/cart/add';
+payload = { product_id: productId, quantity: quantity || 1 };
+} else if (action === 'update') {
+endpoint = '/api/cart/update';
+payload = { product_id: productId, quantity: quantity };
+} else if (action === 'clear') {
+endpoint = '/api/cart/clear';
+payload = {};
+} else {
+throw new Error('Invalid cart action');
+}
+const response = await fetch(endpoint, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-Requested-With': 'XMLHttpRequest'
+},
+body: JSON.stringify(payload),
+credentials: 'same-origin'
+});
+if (!response.ok) {
+const err = await response.json().catch(() => ({}));
+throw new Error(err.error || `HTTP ${response.status}`);
+}
+const data = await response.json();
+if (!data.success) throw new Error(data.error || 'Operation failed');
+// FULL STATE REFRESH after mutation
+await this.refreshCartState();
+// Dispatch global sync event
+document.dispatchEvent(new CustomEvent('globalCartSync', {
+detail: {
+cartState: { ...this.cartState },
+cartCount: data.cart_count || 0,
+source: action
+}
+}));
+// Show toast if available
+if (data.message) this.showToast(data.message, 'success');
+} catch (error) {
+console.error('Cart action failed:', error);
+this.showToast(error.message || 'Update failed. Please try again.', 'error');
+} finally {
+this.syncing = false;
+}
+});
+
+// Handle page visibility changes (tab switch/back button)
+document.addEventListener('visibilitychange', () => {
+if (document.visibilityState === 'visible' && !this.syncing) {
+this.refreshCartState().then(() => {
+document.dispatchEvent(new CustomEvent('globalCartSync', {
+detail: {
+cartState: { ...this.cartState },
+cartCount: Object.keys(this.cartState).length,
+source: 'visibility_change'
+}
+}));
+});
+}
+});
+}
+async refreshCartState() {
+try {
+// Bypass cache with timestamp + cache-control headers
+const response = await fetch(`/api/cart/state?_t=${Date.now()}`, {
+headers: {
+'Cache-Control': 'no-cache, no-store, must-revalidate',
+'Pragma': 'no-cache',
+'Expires': '0'
+},
+credentials: 'same-origin'
+});
+if (!response.ok) throw new Error(`HTTP ${response.status}`);
+const data = await response.json();
+if (!data.success) throw new Error('Invalid cart state response');
+// Update local state
+this.cartState = data.cart_dict || {};
+this.updateBadge(data.distinct_count || 0);
+} catch (error) {
+console.warn('Failed to refresh cart state:', error);
+// Don't show toast on init failures to avoid spam
+if (!document.documentElement.classList.contains('cart-initialized')) {
+document.documentElement.classList.add('cart-initialized');
+}
+}
+}
+updateBadge(count) {
+if (count > 0) {
+if (!this.cartBadge) {
+this.cartBadge = document.createElement('span');
+this.cartBadge.id = 'cart-badge';
+this.cartBadge.className = 'cart-badge absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-cart-pulse';
+this.cartLink.appendChild(this.cartBadge);
+}
+this.cartBadge.textContent = count;
+this.cartBadge.setAttribute('aria-label', `${count} item${count !== 1 ? 's' : ''} in cart`);
+// Reset pulse animation
+this.cartBadge.classList.remove('animate-cart-pulse');
+void this.cartBadge.offsetWidth; // Trigger reflow
+this.cartBadge.classList.add('animate-cart-pulse');
+} else if (this.cartBadge) {
+this.cartBadge.remove();
+this.cartBadge = null;
+}
+}
+showToast(message, type = 'success') {
+const toast = document.getElementById('toast');
+const toastMessage = document.getElementById('toast-message');
+if (!toast || !toastMessage) return;
+toastMessage.textContent = message;
+toast.className = `toast px-4 py-3 rounded-lg shadow-lg flex items-center ${
+type === 'success'
+? 'bg-green-500 text-white'
+: 'bg-red-500 text-white'
+}`;
+toast.classList.add('show');
+// Auto-dismiss after 3 seconds
+setTimeout(() => {
+if (toast.classList.contains('show')) {
+toast.classList.remove('show');
+}
+}, 3000);
+}
+// PUBLIC API - Used by all templates
+addToCart(productId, quantity = 1) {
+document.dispatchEvent(new CustomEvent('cartAction', {
+detail: { productId, quantity, action: 'add' }
+}));
+}
+updateItemQuantity(productId, newQuantity) {
+document.dispatchEvent(new CustomEvent('cartAction', {
+detail: { productId, quantity: newQuantity, action: 'update' }
+}));
+}
+clearCart() {
+document.dispatchEvent(new CustomEvent('cartAction', {
+detail: { action: 'clear' }
+}));
+}
+}
+// Initialize SINGLE cart manager instance
+document.addEventListener('DOMContentLoaded', () => {
+window.globalCart = new GlobalCartManager();
+// Initialize product cards
+document.querySelectorAll('[data-product-card]').forEach(container => {
+const productId = parseInt(container.dataset.productId);
+if (!isNaN(productId)) {
+new ProductCardManager(productId, container);
+}
+});
+// Make product cards clickable (except cart controls)
+document.querySelectorAll('.product-card').forEach(card => {
+card.addEventListener('click', (e) => {
+if (e.target.closest('.add-to-cart-btn, .quantity-control, .quantity-dec, .quantity-inc, button, a')) return;
+const productId = card.dataset.productId;
+if (productId) window.location.href = `/product/${productId}`;
+});
+});
+});
+// ======================
+// PRODUCT CARD MANAGER
+// ======================
+class ProductCardManager {
+constructor(productId, container) {
+this.productId = productId;
+this.container = container;
+this.init();
+}
+init() {
+this.updateFromGlobalState();
+// Listen for GLOBAL sync events (handles back-button/cache)
+document.addEventListener('globalCartSync', () => {
+this.updateFromGlobalState();
+});
+}
+updateFromGlobalState() {
+// CRITICAL FIX: Convert productId to string for proper lookup in cartState
+// (JavaScript object keys are always strings, even if numeric)
+const quantity = window.globalCart?.cartState?.[String(this.productId)] || 0;
+const currentUI = this.container.innerHTML;
+if (quantity > 0) {
+this.renderQuantityControls(quantity);
+} else {
+this.renderAddButton();
+}
+// Only log if state changed (avoid spam)
+if (currentUI !== this.container.innerHTML && console?.debug) {
+console.debug(`[Cart Sync] Product ${this.productId} updated to qty: ${quantity}`);
+}
+}
+renderAddButton() {
+this.container.innerHTML = `
+<button class="add-to-cart-btn bg-primary hover:bg-primary-dark text-white font-medium py-1.5 px-4 rounded-lg transition flex items-center text-sm w-full"
+data-product-id="${this.productId}" aria-label="Add ${this.productId} to cart">
+<i class="fas fa-cart-plus mr-1.5"></i> Add
+</button>
+`;
+this.container.querySelector('.add-to-cart-btn')?.addEventListener('click', (e) => {
+e.stopPropagation();
+e.preventDefault();
+window.globalCart?.addToCart(this.productId, 1);
+});
+}
+renderQuantityControls(quantity) {
+this.container.innerHTML = `
+<div class="quantity-control flex items-center border rounded-lg overflow-hidden w-full max-w-24" data-product-id="${this.productId}">
+<button class="quantity-dec px-2 py-1 hover:bg-gray-100 ${quantity <= 1 ? 'disabled:opacity-50 cursor-not-allowed' : ''}"
+${quantity <= 1 ? 'disabled' : ''} aria-label="Decrease quantity">
+<i class="fas fa-minus text-gray-600"></i>
+</button>
+<span class="px-3 py-1 border-x text-center w-8 font-medium" aria-live="polite">${quantity}</span>
+<button class="quantity-inc px-2 py-1 hover:bg-gray-100" aria-label="Increase quantity">
+<i class="fas fa-plus text-primary"></i>
+</button>
+</div>
+`;
+const decBtn = this.container.querySelector('.quantity-dec');
+const incBtn = this.container.querySelector('.quantity-inc');
+decBtn?.addEventListener('click', (e) => {
+e.stopPropagation();
+e.preventDefault();
+if (!decBtn.disabled) {
+const newQty = Math.max(0, quantity - 1);
+window.globalCart?.updateItemQuantity(this.productId, newQty);
+}
+});
+incBtn?.addEventListener('click', (e) => {
+e.stopPropagation();
+e.preventDefault();
+window.globalCart?.updateItemQuantity(this.productId, quantity + 1);
+});
+}
+}
+</script>
+</body>
+</html>
+
+
+---cart.html---
+
+
+
+{% extends "base.html" %}
+{% block title %}Cart{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-2 sm:px-4">
+  <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+    <h1 class="text-3xl font-bold text-gray-900">Your Shopping Cart</h1>
+    {% if cart_items %}
+    <button
+      id="clear-cart-btn"
+      class="text-red-500 hover:text-red-700 font-medium flex items-center transition"
+      aria-label="Clear entire cart"
+    >
+      <i class="fas fa-trash-alt mr-1.5"></i> Clear Cart
+    </button>
+    {% endif %}
+  </div>
+
+  {% if cart_items %}
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <!-- Mobile View (Stacked Cards) -->
+    <div class="divide-y divide-gray-200 md:hidden">
+      {% for item in cart_items %}
+      <div class="p-4 cart-item" data-product-id="{{ item.id }}">
+        <div class="flex justify-between">
+          <div class="font-medium text-gray-900">{{ item.name }}</div>
+          <button
+            class="remove-item text-red-500 hover:text-red-700 p-1"
+            data-product-id="{{ item.id }}"
+            aria-label="Remove {{ item.name }} from cart"
+          >
+            <i class="fas fa-trash-alt text-sm"></i>
+          </button>
+        </div>
+        <div class="flex mt-3 space-x-3">
+          <div class="flex-shrink-0 h-16 w-16 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
+            <img class="h-full w-full object-contain p-1" src="{{ item.image }}" alt="{{ item.name }}">
+          </div>
+          <div class="flex-1">
+            <div class="text-gray-600 text-sm">₹{{ item.price }}</div>
+            <div class="mt-2 flex items-center">
+              <div class="flex items-center border rounded-lg overflow-hidden">
+                <button
+                  class="quantity-dec px-2 py-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-product-id="{{ item.id }}"
+                  {% if item.quantity <= 1 %}disabled{% endif %}
+                  aria-label="Decrease quantity"
+                >
+                  <i class="fas fa-minus text-gray-600 text-xs"></i>
+                </button>
+                <span class="px-2.5 py-1 font-medium cart-quantity min-w-[2rem] text-center">{{ item.quantity }}</span>
+                <button
+                  class="quantity-inc px-2 py-1 hover:bg-gray-100"
+                  data-product-id="{{ item.id }}"
+                  aria-label="Increase quantity"
+                >
+                  <i class="fas fa-plus text-primary text-xs"></i>
+                </button>
+              </div>
+            </div>
+            <div class="mt-2 text-right font-medium text-gray-900">₹{{ item.price * item.quantity }}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Desktop View (Table - unchanged) -->
+    <table class="hidden min-w-full divide-y divide-gray-200 md:table">
+      <thead class="bg-gray-50">
+        <tr>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Price</th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remove</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for item in cart_items %}
+        <tr class="cart-item" data-product-id="{{ item.id }}">
+          <td class="px-4 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+              <div class="flex-shrink-0 h-16 w-16 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
+                <img class="h-full w-full object-contain p-1" src="{{ item.image }}" alt="{{ item.name }}">
+              </div>
+              <div class="ml-4">
+                <div class="font-medium text-gray-900">{{ item.name }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-4 whitespace-nowrap hidden sm:table-cell text-gray-900">
+            ₹{{ item.price }}
+          </td>
+          <td class="px-4 py-4 whitespace-nowrap">
+            <div class="flex items-center border rounded-lg overflow-hidden w-28">
+              <button
+                class="quantity-dec px-2.5 py-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                data-product-id="{{ item.id }}"
+                {% if item.quantity <= 1 %}disabled{% endif %}
+                aria-label="Decrease {{ item.name }} quantity"
+              >
+                <i class="fas fa-minus text-gray-600"></i>
+              </button>
+              <span class="px-3 py-1 border-x text-center w-9 font-medium cart-quantity">{{ item.quantity }}</span>
+              <button
+                class="quantity-inc px-2.5 py-1 hover:bg-gray-100 transition"
+                data-product-id="{{ item.id }}"
+                aria-label="Increase {{ item.name }} quantity"
+              >
+                <i class="fas fa-plus text-primary"></i>
+              </button>
+            </div>
+          </td>
+          <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
+            ₹{{ item.price * item.quantity }}
+          </td>
+          <td class="px-4 py-4 whitespace-nowrap">
+            <button
+              class="remove-item text-red-500 hover:text-red-700 p-1 transition"
+              data-product-id="{{ item.id }}"
+              aria-label="Remove {{ item.name }} from cart"
+            >
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Summary (works on both) -->
+    <div class="p-6 bg-gray-50 border-t">
+      <div class="flex flex-col sm:flex-row sm:justify-between">
+        <div class="space-y-2 mb-4 sm:mb-0">
+          <div class="flex justify-between text-gray-600">
+            <span>Subtotal ({{ cart_items|sum(attribute='quantity') }} item{{ cart_items|sum(attribute='quantity') != 1 and 's' or '' }}):</span>
+            <span class="font-medium">₹{{ subtotal }}</span>
+          </div>
+          <div class="flex justify-between text-gray-600">
+            <span>Shipping:</span>
+            <span class="font-medium">Calculated at checkout</span>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-2xl font-bold text-gray-900 mb-2">Total: ₹{{ subtotal }}</div>
+          <a
+            href="{{ url_for('personal_detail') }}"
+            class="inline-block bg-primary hover:bg-primary-dark text-white font-bold py-3 px-8 rounded-xl text-lg transition shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            aria-label="Proceed to checkout"
+          >
+            Proceed to Checkout
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="bg-white rounded-xl shadow p-6 sm:p-12 text-center">
+    <i class="fas fa-shopping-cart text-5xl sm:text-6xl text-gray-300 mb-4" aria-hidden="true"></i>
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
+    <p class="text-gray-600 mb-6">Add items to see them here</p>
+    <a
+      href="{{ url_for('products') }}"
+      class="inline-block bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-medium transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+    >
+      <i class="fas fa-arrow-left mr-2"></i> Continue Shopping
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const handleCartUpdate = async (productId, newQuantity, actionName) => {
+    try {
+      const response = await fetch('/api/cart/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          product_id: productId,
+          quantity: newQuantity
+        }),
+        credentials: 'same-origin'
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Update failed');
+      window.location.reload();
+    } catch (error) {
+      console.error(`${actionName} failed:`, error);
+      if (window.globalCart?.showToast) {
+        window.globalCart.showToast(error.message || `Failed to ${actionName.toLowerCase()}`, 'error');
+      }
+    }
+  };
+
+  // Quantity controls (mobile + desktop)
+  document.querySelectorAll('.quantity-dec, .quantity-inc').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const productId = parseInt(button.closest('[data-product-id]').dataset.productId);
+      const container = button.closest('.cart-item');
+      const qtySpan = container.querySelector('.cart-quantity');
+      const currentQty = parseInt(qtySpan.textContent);
+      const isIncrement = button.classList.contains('quantity-inc');
+      const newQty = isIncrement ? currentQty + 1 : Math.max(0, currentQty - 1);
+
+      if (newQty === 0) {
+        if (!confirm('Remove this item from cart?')) return;
+        handleCartUpdate(productId, 0, 'Remove item');
+      } else {
+        handleCartUpdate(productId, newQty, isIncrement ? 'Increase quantity' : 'Decrease quantity');
+      }
+    });
+  });
+
+  // Remove item
+  document.querySelectorAll('.remove-item').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!confirm('Remove this item from cart?')) return;
+      const productId = parseInt(button.closest('[data-product-id]').dataset.productId);
+      handleCartUpdate(productId, 0, 'Remove item');
+    });
+  });
+
+  // Clear cart
+  document.getElementById('clear-cart-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!confirm('Clear your entire cart? This cannot be undone.')) return;
+    try {
+      const response = await fetch('/api/cart/clear', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Clear failed');
+      window.location.reload();
+    } catch (error) {
+      console.error('Clear cart failed:', error);
+      if (window.globalCart?.showToast) {
+        window.globalCart.showToast(error.message || 'Failed to clear cart', 'error');
+      }
+    }
+  });
+});
+</script>
+{% endblock %}
+
+
+---combined.txt---
+
+
+
+
+
+
+---error.html---
+
+
+
+
+
+
+---payment.html---
+
+
+
+{% extends "base.html" %}
+{% block title %}Payment{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="flex mb-8">
+    <div class="flex-1 text-center pb-2 text-gray-400">Personal Details</div>
+    <div class="flex-1 text-center pb-2 border-b-2 border-indigo-600 font-bold">Payment</div>
+  </div>
+  <div class="bg-white rounded-xl shadow p-6 text-center">
+    <div class="mb-6">
+      <i class="fas fa-credit-card text-5xl text-indigo-200 mb-4"></i>
+      <h2 class="text-2xl font-bold text-gray-900">Complete Your Payment</h2>
+      <p class="text-gray-600 mt-2">Secure checkout via Razorpay</p>
+    </div>
+
+    <!-- Coupon Section -->
+    <div class="mb-6 bg-gray-50 rounded-lg p-4">
+      <div class="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
+        <input
+          type="text"
+          id="coupon-input"
+          placeholder="Enter coupon code (e.g. A3X9KQ7M2N)"
+          class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+          aria-label="Coupon code"
+          maxlength="10"
+        />
+        <button
+          id="apply-coupon-btn"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition whitespace-nowrap"
+          aria-label="Apply coupon"
+        >
+          Apply
+        </button>
+      </div>
+      <div id="coupon-message" class="mt-2 min-h-[1.25rem] text-sm font-medium"></div>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+      <div class="flex justify-between text-gray-600 mb-1">
+        <span>Subtotal:</span>
+        <span id="original-amount">₹{{ "%.2f"|format(amount/100) }}</span>
+      </div>
+      <div class="flex justify-between text-green-600 font-medium mb-1">
+        <span>Discount:</span>
+        <span id="discount-amount">-₹0.00</span>
+      </div>
+      <div class="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
+        <span>Total:</span>
+        <span id="final-amount">₹{{ "%.2f"|format(amount/100) }}</span>
+      </div>
+      <div class="flex justify-between text-gray-600 mt-2 text-sm">
+        <span>Payment Method:</span>
+        <span>Razorpay</span>
+      </div>
+    </div>
+
+    <!-- Pay Button (Triggers Razorpay) -->
+    <button
+      id="pay-button"
+      class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 px-6 rounded-xl text-lg transition flex items-center justify-center"
+    >
+      <i class="fab fa-cc-visa text-2xl mr-3"></i>
+      Pay <span id="pay-button-amount">₹{{ "%.2f"|format(amount/100) }}</span> via Razorpay
+    </button>
+
+    <div class="mt-6 flex items-center justify-center text-sm text-gray-500">
+      <i class="fas fa-lock mr-2"></i>
+      <span>100% secure payment • SSL encrypted</span>
+    </div>
+    <div class="mt-8 pt-6 border-t border-gray-200 text-sm text-gray-600">
+      <p class="mb-2"><i class="fas fa-shield-alt text-green-500 mr-2"></i> Payment protected by Razorpay</p>
+      <p><i class="fas fa-headset text-blue-500 mr-2"></i> Support: help@simplecart.example</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Initial values (in paise)
+  const originalAmountPaise = {{ amount }};
+  let finalAmountPaise = originalAmountPaise; // Will update if coupon applied
+
+  const couponInput = document.getElementById('coupon-input');
+  const applyBtn = document.getElementById('apply-coupon-btn');
+  const messageEl = document.getElementById('coupon-message');
+  const originalAmountEl = document.getElementById('original-amount');
+  const discountAmountEl = document.getElementById('discount-amount');
+  const finalAmountEl = document.getElementById('final-amount');
+  const payButtonAmountEl = document.getElementById('pay-button-amount');
+  const payButton = document.getElementById('pay-button');
+
+  const formatRupees = (paise) => '₹' + (paise / 100).toFixed(2);
+
+  const updateDisplay = () => {
+    originalAmountEl.textContent = formatRupees(originalAmountPaise);
+    const discount = originalAmountPaise - finalAmountPaise;
+    discountAmountEl.textContent = discount > 0 ? '-₹' + (discount / 100).toFixed(2) : '-₹0.00';
+    finalAmountEl.textContent = formatRupees(finalAmountPaise);
+    payButtonAmountEl.textContent = formatRupees(finalAmountPaise);
+  };
+
+  const showMessage = (text, isError = false) => {
+    messageEl.textContent = text;
+    messageEl.className = `mt-2 min-h-[1.25rem] text-sm font-medium ${
+      isError ? 'text-red-600' : 'text-green-600'
+    }`;
+  };
+
+  const applyCoupon = async () => {
+    const code = couponInput.value.trim().toUpperCase();
+    if (!code) {
+      showMessage('Please enter a coupon code', true);
+      return;
+    }
+    try {
+      const response = await fetch('/api/coupon/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, subtotal: originalAmountPaise / 100 }),
+        credentials: 'same-origin'
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Invalid coupon');
+      }
+      finalAmountPaise = Math.round(data.final_amount * 100); // Convert back to paise
+      showMessage(data.message, false);
+      couponInput.disabled = true;
+      applyBtn.disabled = true;
+      updateDisplay();
+    } catch (error) {
+      console.error('Coupon error:', error);
+      showMessage(error.message || 'Invalid coupon code', true);
+      finalAmountPaise = originalAmountPaise;
+      updateDisplay();
+    }
+  };
+
+  applyBtn.addEventListener('click', applyCoupon);
+  couponInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') applyCoupon();
+  });
+
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  // RAZORPAY PAYMENT HANDLER
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  payButton.addEventListener('click', () => {
+    if (finalAmountPaise <= 0) {
+      alert('Total amount must be greater than ₹0');
+      return;
+    }
+
+    const options = {
+      key: 'rzp_test_SBcnp2x7b5GRqy', // 🔴 REPLACE WITH YOUR TEST KEY
+      amount: finalAmountPaise, // amount in paise
+      currency: 'INR',
+      name: 'A.R.N Shop',
+      description: 'Order Payment',
+      image: 'https://via.placeholder.com/50?text=Logo', // Optional
+      handler: function (response) {
+        // Payment successful
+        alert('Payment successful! Payment ID: ' + response.razorpay_payment_id);
+        // TODO: Send payment_id to your backend to verify & mark order as paid
+        // Example:
+        // fetch('/payment/verify', { method: 'POST', body: JSON.stringify(response) });
+      },
+      prefill: {
+        name: '', // You can get this from session if stored
+        email: '',
+        contact: ''
+      },
+      theme: {
+        color: '#4f46e5'
+      },
+      modal: {
+        ondismiss: function() {
+          alert('Payment cancelled');
+        }
+      }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+  });
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  updateDisplay();
+});
+</script>
+{% endblock %}
+
+
+---personal_detail.html---
+
+
+
+{% extends "base.html" %}
+{% block title %}Checkout{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="flex mb-8">
+    <div class="flex-1 text-center pb-2 border-b-2 border-indigo-600 font-bold">Personal Details</div>
+    <div class="flex-1 text-center pb-2 text-gray-400">Payment</div>
+  </div>
+  <div class="bg-white rounded-xl shadow p-6">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">Shipping Information</h2>
+    <form action="{{ url_for('submit_personal_detail') }}" method="POST">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-gray-700 mb-1">Full Name</label>
+          <input type="text" name="full_name" required
+                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+        </div>
+        <div>
+          <label class="block text-gray-700 mb-1">Address</label>
+          <textarea name="address" required rows="3"
+                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-gray-700 mb-1">City</label>
+            <input type="text" name="city" required
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+          </div>
+          <div>
+            <label class="block text-gray-700 mb-1">Postal Code</label>
+            <input type="text" name="postal_code" required
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+          </div>
+        </div>
+        <div>
+          <label class="block text-gray-700 mb-1">Phone</label>
+          <input type="tel" name="phone" required
+                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+        </div>
+      </div>
+      <button type="submit"
+              class="mt-6 w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition">
+        Proceed to Payment
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+
+---product_detail.html---
+
+
+
+{% extends "base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+  <div class="md:flex">
+    <div class="md:flex-shrink-0 p-6 flex items-center justify-center bg-gray-50">
+      <img class="h-80 max-w-full object-contain" src="{{ product.image }}" alt="{{ product.name }}">
+    </div>
+    <div class="p-6 md:p-8 flex flex-col">
+      <h1 class="text-2xl md:text-3xl font-bold text-gray-900">{{ product.name }}</h1>
+      <p class="mt-3 text-gray-600 text-lg">₹{{ product.price }}</p>
+      <div class="mt-5 text-gray-700 leading-relaxed">
+        <p>{{ product.description }}</p>
+      </div>
+      <div class="mt-8 pt-6 border-t border-gray-200 space-y-2">
+        <h2 class="font-semibold text-gray-900 flex items-center">
+          <i class="fas fa-truck text-primary mr-2"></i> Delivery & Returns
+        </h2>
+        <ul class="space-y-1.5 text-gray-600 text-sm">
+          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> Free shipping on orders over ₹500</li>
+          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> 30-day easy returns</li>
+          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> Cash on delivery available</li>
+        </ul>
+      </div>
+
+      <!-- ACTION CONTAINER -->
+      <div class="mt-8 pt-4 border-t border-gray-200" id="product-action-container">
+        {% if in_cart %}
+        <div class="flex items-center justify-between max-w-xs mx-auto w-full">
+          <span class="text-gray-700 font-medium">In Cart:</span>
+          <div class="flex items-center border rounded-lg overflow-hidden">
+            <button id="dec-btn" class="px-3 py-2 hover:bg-gray-100 {% if cart_quantity <= 1 %}disabled:opacity-50{% endif %}"
+              {% if cart_quantity <= 1 %}disabled{% endif %}>
+              <i class="fas fa-minus text-gray-600"></i>
+            </button>
+            <span id="quantity-display" class="px-4 py-2 font-bold">{{ cart_quantity }}</span>
+            <button id="inc-btn" class="px-3 py-2 hover:bg-gray-100">
+              <i class="fas fa-plus text-primary"></i>
+            </button>
+          </div>
+        </div>
+        <a href="{{ url_for('cart') }}"
+          class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-center transition flex items-center justify-center">
+          <i class="fas fa-shopping-cart mr-2"></i> Go to Cart
+        </a>
+        {% else %}
+        <button
+          id="add-to-cart-btn"
+          class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-lg transition flex items-center justify-center shadow-md hover:shadow-lg">
+          <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const productId = {{ product.id }};
+  const actionContainer = document.getElementById('product-action-container');
+
+  // Reusable function to render "Add to Cart" button
+  function renderAddButton() {
+    actionContainer.innerHTML = `
+      <button id="add-to-cart-btn" class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-lg transition flex items-center justify-center shadow-md hover:shadow-lg">
+        <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+      </button>
+      <a href="/products" class="mt-3 w-full text-center py-2 text-gray-600 hover:text-primary font-medium transition">
+        ← Continue Shopping
+      </a>
+    `;
+    document.getElementById('add-to-cart-btn').addEventListener('click', handleAddToCart);
+  }
+
+  // Reusable function to render quantity controls
+  function renderQuantityControls(initialQty = 1) {
+    let qty = initialQty;
+    actionContainer.innerHTML = `
+      <div class="flex items-center justify-between max-w-xs mx-auto w-full">
+        <span class="text-gray-700 font-medium">In Cart:</span>
+        <div class="flex items-center border rounded-lg overflow-hidden">
+          <button id="dec-btn" class="px-3 py-2 hover:bg-gray-100 ${qty <= 1 ? 'disabled:opacity-50' : ''}" ${qty <= 1 ? 'disabled' : ''}>
+            <i class="fas fa-minus text-gray-600"></i>
+          </button>
+          <span id="quantity-display" class="px-4 py-2 font-bold">${qty}</span>
+          <button id="inc-btn" class="px-3 py-2 hover:bg-gray-100">
+            <i class="fas fa-plus text-primary"></i>
+          </button>
+        </div>
+      </div>
+      <a href="/cart" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-center transition flex items-center justify-center">
+        <i class="fas fa-shopping-cart mr-2"></i> Go to Cart
+      </a>
+      <a href="/" class="mt-3 w-full text-center py-2 text-gray-600 hover:text-primary font-medium transition">
+        ← Continue Shopping
+      </a>
+    `;
+
+    // Attach event listeners
+    document.getElementById('dec-btn').addEventListener('click', () => {
+      if (qty > 1) {
+        qty--;
+        document.getElementById('quantity-display').textContent = qty;
+        const decBtn = document.getElementById('dec-btn');
+        decBtn.disabled = (qty <= 1);
+        decBtn.classList.toggle('disabled:opacity-50', qty <= 1);
+        window.globalCart.updateItemQuantity(productId, qty);
+      } else {
+        // Remove from cart and revert to "Add" button
+        window.globalCart.updateItemQuantity(productId, 0).finally(() => {
+          renderAddButton();
+        });
+      }
+    });
+
+    document.getElementById('inc-btn').addEventListener('click', () => {
+      qty++;
+      document.getElementById('quantity-display').textContent = qty;
+      document.getElementById('dec-btn').disabled = false;
+      document.getElementById('dec-btn').classList.remove('disabled:opacity-50');
+      window.globalCart.updateItemQuantity(productId, qty);
+    });
+  }
+
+  // Handle "Add to Cart" click
+  async function handleAddToCart() {
+    const btn = document.getElementById('add-to-cart-btn');
+    if (!btn) return;
+
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
+    btn.disabled = true;
+
+    try {
+      // Wait for cart update to complete
+      await window.globalCart.addToCart(productId, 1);
+      // Only render controls AFTER success
+      renderQuantityControls(1);
+    } catch (error) {
+      console.error('Add to cart failed:', error);
+      // Restore button on error
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+      if (window.globalCart?.showToast) {
+        window.globalCart.showToast('Failed to add item. Please try again.', 'error');
+      }
+    }
+  }
+
+  // Initialize based on initial state
+  {% if in_cart %}
+    renderQuantityControls({{ cart_quantity }});
+  {% else %}
+    document.getElementById('add-to-cart-btn')?.addEventListener('click', handleAddToCart);
+  {% endif %}
+});
+</script>
+{% endblock %}
+
+
+---products.html---
+
+
+
+{% extends "base.html" %}
+{% block title %}Products{% endblock %}
+{% block content %}
+<div class="mb-8 text-center">
+<h1 class="text-3xl md:text-4xl font-bold text-gray-900">Shop Our Collection</h1>
+<p class="text-gray-600 mt-2 max-w-2xl mx-auto">Discover high-quality products designed for everyday use</p>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+{% for product in products %}
+<div
+class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border border-gray-100"
+data-product-id="{{ product.id }}"
+>
+<div class="h-48 flex items-center justify-center bg-gray-50 p-4">
+<img
+src="{{ product.image }}"
+alt="{{ product.name }}"
+class="max-h-40 max-w-full object-contain transition-transform hover:scale-105"
+>
+</div>
+<div class="p-4 md:p-5">
+<h2 class="text-lg md:text-xl font-bold text-gray-900 mb-1 line-clamp-1">{{ product.name }}</h2>
+<p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ product.description }}</p>
+<div class="flex justify-between items-center pt-3 border-t border-gray-100">
+<span class="text-xl font-bold text-primary">₹{{ product.price }}</span>
+<!-- ACTION CONTAINER - JS will replace this -->
+<div class="action-container" data-product-card data-product-id="{{ product.id }}">
+<button class="add-to-cart-btn bg-primary text-white py-1.5 px-4 rounded-lg text-sm opacity-75 cursor-not-allowed">
+<i class="fas fa-spinner fa-spin"></i>
+</button>
+</div>
+</div>
+</div>
+</div>
+{% endfor %}
+</div>
+{% endblock %}

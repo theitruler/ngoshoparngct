@@ -1,3 +1,4 @@
+---payment.html---
 {% extends "base.html" %}
 {% block title %}Payment{% endblock %}
 {% block content %}
@@ -6,14 +7,12 @@
     <div class="flex-1 text-center pb-2 text-gray-400">Personal Details</div>
     <div class="flex-1 text-center pb-2 border-b-2 border-indigo-600 font-bold">Payment</div>
   </div>
-
   <div class="bg-white rounded-xl shadow p-6 text-center">
     <div class="mb-6">
       <i class="fas fa-credit-card text-5xl text-indigo-200 mb-4"></i>
       <h2 class="text-2xl font-bold text-gray-900">Complete Your Payment</h2>
       <p class="text-gray-600 mt-2">Secure checkout via Razorpay</p>
     </div>
-
     <!-- Coupon Section -->
     <div class="mb-6 bg-gray-50 rounded-lg p-4">
       <div class="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
@@ -35,7 +34,6 @@
       </div>
       <div id="coupon-message" class="mt-2 min-h-[1.25rem] text-sm font-medium"></div>
     </div>
-
     <!-- Order Summary -->
     <div class="bg-gray-50 rounded-lg p-4 mb-6">
       <div class="flex justify-between text-gray-600 mb-1">
@@ -55,108 +53,149 @@
         <span>Razorpay</span>
       </div>
     </div>
-
-    <!-- Pay Button -->
+    <!-- Pay Button (Triggers Razorpay) -->
     <button
-      id="rzp-button1"
+      id="pay-button"
       class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 px-6 rounded-xl text-lg transition flex items-center justify-center"
     >
       <i class="fab fa-cc-visa text-2xl mr-3"></i>
       Pay <span id="pay-button-amount">₹{{ "%.2f"|format(amount/100) }}</span> via Razorpay
     </button>
-
     <div class="mt-6 flex items-center justify-center text-sm text-gray-500">
       <i class="fas fa-lock mr-2"></i>
       <span>100% secure payment • SSL encrypted</span>
     </div>
-
     <div class="mt-8 pt-6 border-t border-gray-200 text-sm text-gray-600">
       <p class="mb-2"><i class="fas fa-shield-alt text-green-500 mr-2"></i> Payment protected by Razorpay</p>
       <p><i class="fas fa-headset text-blue-500 mr-2"></i> Support: help@simplecart.example</p>
     </div>
   </div>
-
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const originalAmountPaise = {{ amount }};
-      const originalAmountRupees = originalAmountPaise / 100;
-
-      const couponInput = document.getElementById('coupon-input');
-      const applyBtn = document.getElementById('apply-coupon-btn');
-      const messageEl = document.getElementById('coupon-message');
-      const originalAmountEl = document.getElementById('original-amount');
-      const discountAmountEl = document.getElementById('discount-amount');
-      const finalAmountEl = document.getElementById('final-amount');
-      const payButtonAmountEl = document.getElementById('pay-button-amount');
-
-      let appliedDiscount = 0;
-      let finalAmount = originalAmountRupees;
-
-      const formatRupees = (num) => '₹' + num.toFixed(2);
-
-      const updateDisplay = () => {
-        originalAmountEl.textContent = formatRupees(originalAmountRupees);
-        discountAmountEl.textContent = appliedDiscount > 0 ? '-₹' + appliedDiscount.toFixed(2) : '-₹0.00';
-        finalAmountEl.textContent = formatRupees(finalAmount);
-        payButtonAmountEl.textContent = formatRupees(finalAmount);
-      };
-
-      const showMessage = (text, isError = false) => {
-        messageEl.textContent = text;
-        messageEl.className = `mt-2 min-h-[1.25rem] text-sm font-medium ${
-          isError ? 'text-red-600' : 'text-green-600'
-        }`;
-      };
-
-      const applyCoupon = async () => {
-        const code = couponInput.value.trim().toUpperCase();
-        if (!code) {
-          showMessage('Please enter a coupon code', true);
-          return;
-        }
-
-        try {
-          const response = await fetch('/api/coupon/validate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ code, subtotal: originalAmountRupees }),
-            credentials: 'same-origin'
-          });
-
-          const data = await response.json();
-
-          if (!response.ok || !data.success) {
-            throw new Error(data.error || 'Invalid coupon');
-          }
-
-          appliedDiscount = data.discount_amount;
-          finalAmount = data.final_amount;
-
-          showMessage(data.message, false);
-          couponInput.disabled = true;
-          applyBtn.disabled = true;
-          updateDisplay();
-        } catch (error) {
-          console.error('Coupon error:', error);
-          showMessage(error.message || 'Invalid coupon code', true);
-          appliedDiscount = 0;
-          finalAmount = originalAmountRupees;
-          updateDisplay();
-        }
-      };
-
-      applyBtn.addEventListener('click', applyCoupon);
-      couponInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') applyCoupon();
-      });
-
-      // Initialize display
-      updateDisplay();
-    });
-  </script>
 </div>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Initial values (in paise)
+  const originalAmountPaise = {{ amount }};
+  let finalAmountPaise = originalAmountPaise;
+  const couponInput = document.getElementById('coupon-input');
+  const applyBtn = document.getElementById('apply-coupon-btn');
+  const messageEl = document.getElementById('coupon-message');
+  const originalAmountEl = document.getElementById('original-amount');
+  const discountAmountEl = document.getElementById('discount-amount');
+  const finalAmountEl = document.getElementById('final-amount');
+  const payButtonAmountEl = document.getElementById('pay-button-amount');
+  const payButton = document.getElementById('pay-button');
+
+  const formatRupees = (paise) => '₹' + (paise / 100).toFixed(2);
+
+  const updateDisplay = () => {
+    originalAmountEl.textContent = formatRupees(originalAmountPaise);
+    const discount = originalAmountPaise - finalAmountPaise;
+    discountAmountEl.textContent = discount > 0 ? '-₹' + (discount / 100).toFixed(2) : '-₹0.00';
+    finalAmountEl.textContent = formatRupees(finalAmountPaise);
+    payButtonAmountEl.textContent = formatRupees(finalAmountPaise);
+  };
+
+  const showMessage = (text, isError = false) => {
+    messageEl.textContent = text;
+    messageEl.className = `mt-2 min-h-[1.25rem] text-sm font-medium ${
+      isError ? 'text-red-600' : 'text-green-600'
+    }`;
+  };
+
+  const applyCoupon = async () => {
+    const code = couponInput.value.trim().toUpperCase();
+    if (!code) {
+      showMessage('Please enter a coupon code', true);
+      return;
+    }
+    try {
+      const response = await fetch('/api/coupon/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, subtotal: originalAmountPaise / 100 }),
+        credentials: 'same-origin'
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Invalid coupon');
+      }
+      finalAmountPaise = Math.round(data.final_amount * 100);
+      showMessage(data.message, false);
+      couponInput.disabled = true;
+      applyBtn.disabled = true;
+      updateDisplay();
+    } catch (error) {
+      console.error('Coupon error:', error);
+      showMessage(error.message || 'Invalid coupon code', true);
+      finalAmountPaise = originalAmountPaise;
+      updateDisplay();
+    }
+  };
+
+  applyBtn.addEventListener('click', applyCoupon);
+  couponInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') applyCoupon();
+  });
+
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  // RAZORPAY PAYMENT HANDLER WITH PREFILL FROM PERSONAL DETAILS
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  payButton.addEventListener('click', () => {
+    if (finalAmountPaise <= 0) {
+      alert('Total amount must be greater than ₹0');
+      return;
+    }
+
+    const options = {
+      key: 'rzp_live_SBjMigEgVT53ML',
+      amount: finalAmountPaise,
+      currency: 'INR',
+      name: 'A.R.N Shop',
+      description: 'Order Payment',
+      image: '/logo.png',
+      handler: function (response) {
+        fetch('/payment/success', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify(response),
+          credentials: 'same-origin'
+        })
+        .then(res => {
+          if (res.ok) {
+            window.location.href = '/';
+          } else {
+            alert('Payment verification failed. Please contact support.');
+          }
+        })
+        .catch(err => {
+          console.error('Verification error:', err);
+          alert('Failed to verify payment. Contact support with Payment ID: ' + response.razorpay_payment_id);
+        });
+      },
+      prefill: {
+        name: '{{ full_name | e }}',
+        contact: '{{ phone | e }}'
+      },
+      theme: {
+        color: '#4f46e5'
+      },
+      modal: {
+        ondismiss: function() {
+          alert('Payment cancelled');
+        }
+      }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+  });
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+  updateDisplay();
+});
+</script>
 {% endblock %}
