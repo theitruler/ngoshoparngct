@@ -348,14 +348,74 @@ def validate_coupon():
         data = request.get_json()
         code = data.get('code', '').strip().upper()
         subtotal = float(data.get('subtotal', 0))
+        cart_items = session.get('cart', [])
+
         if not code:
             return jsonify({'success': False, 'error': 'Coupon code is required'}), 400
-        if code in COUPONS.get('50_percent', []):
+
+        # Normalize coupon lists
+        valid_50 = [c.strip() for c in COUPONS.get('50_percent', []) if isinstance(c, str)]
+        valid_25 = [c.strip() for c in COUPONS.get('25_percent', []) if isinstance(c, str)]
+        valid_10 = [c.strip() for c in COUPONS.get('10_percent', []) if isinstance(c, str)]
+        valid_bogo_hoodie = [c.strip() for c in COUPONS.get('bogo_hoodie', []) if isinstance(c, str)]
+        valid_bogo_cap = [c.strip() for c in COUPONS.get('bogo_cap', []) if isinstance(c, str)]
+
+        # Helper: Find product by ID
+        def get_product_by_id(pid):
+            return next((p for p in PRODUCTS if p.get('id') == pid), None)
+
+        # BOGO HOODIE
+        if code in valid_bogo_hoodie:
+            target_tag = 'hoodie'
+            error_msg = 'Add at least 1 hoodies to use this coupon'
+        # BOGO CAP
+        elif code in valid_bogo_cap:
+            target_tag = 'cap'
+            error_msg = 'Add at least 1 caps to use this coupon'
+        else:
+            target_tag = None
+
+        # Handle BOGO types
+        if target_tag:
+            qualifying_items = []
+            for item in cart_items:
+                product = get_product_by_id(item['id'])
+                if not product:
+                    continue
+                tags = product.get('tags', [])
+                if isinstance(tags, list) and any(t.lower() == target_tag for t in tags):
+                    qualifying_items.append({
+                        'price': item['price'],
+                        'quantity': item['quantity']
+                    })
+
+            total_count = sum(h['quantity'] for h in qualifying_items)
+
+            if total_count < 1:
+                return jsonify({'success': False, 'error': error_msg}), 400
+
+            cheapest_price = min(h['price'] for h in qualifying_items)
+            discount_amount = round(cheapest_price, 2)
+            final_amount = subtotal - discount_amount
+
+            return jsonify({
+                'success': True,
+                'discount_percent': 0,
+                'discount_amount': discount_amount,
+                'final_amount': final_amount,
+                'message': f'BOGO: One {target_tag} free!'
+            })
+
+        # Standard % discounts
+        elif code in valid_50:
             discount_percent = 50
-        elif code in COUPONS.get('25_percent', []):
+        elif code in valid_25:
             discount_percent = 25
+        elif code in valid_10:
+            discount_percent = 10
         else:
             return jsonify({'success': False, 'error': 'Invalid or expired coupon'}), 400
+
         discount_amount = round(subtotal * (discount_percent / 100), 2)
         final_amount = subtotal - discount_amount
         return jsonify({
@@ -365,6 +425,7 @@ def validate_coupon():
             'final_amount': final_amount,
             'message': f'{discount_percent}% discount applied!'
         })
+
     except (ValueError, TypeError):
         return jsonify({'success': False, 'error': 'Invalid subtotal value'}), 400
     except Exception as e:

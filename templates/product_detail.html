@@ -1,220 +1,243 @@
 {% extends "base.html" %}
 {% block title %}{{ product.name }}{% endblock %}
 {% block content %}
-<div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-  <div class="md:flex">
-    <div class="md:flex-shrink-0 p-6 flex items-center justify-center bg-gray-50">
-      <img class="h-80 max-w-full object-contain" src="{{ product.image }}" alt="{{ product.name }}">
-    </div>
-    <div class="p-6 md:p-8 flex flex-col">
-      <h1 class="text-2xl md:text-3xl font-bold text-gray-900">{{ product.name }}</h1>
-      <p class="mt-3 text-gray-600 text-lg">₹{{ product.price }}</p>
-      <div class="mt-5 text-gray-700 leading-relaxed">
-        <p>{{ product.description }}</p>
-      </div>
-
-      <!-- VARIANT SELECTION -->
-      {% if product.variants %}
-        <div class="mt-6 space-y-5">
-          <!-- Color Selection -->
-          <div>
-            <label class="block text-gray-700 font-medium mb-2">Color</label>
-            <div class="flex flex-wrap gap-2" id="color-options">
-              <!-- Filled by JS -->
-            </div>
-          </div>
-
-          <!-- Size Selection -->
-          <div id="size-section" class="hidden">
-            <label class="block text-gray-700 font-medium mb-2">Size</label>
-            <div class="flex flex-wrap gap-2" id="size-options">
-              <!-- Filled by JS -->
-            </div>
-          </div>
-
-          <input type="hidden" id="selected-variant" value="">
-        </div>
-      {% endif %}
-
-      <!-- Rest of your HTML (delivery info, buttons, etc.) -->
-      <div class="mt-8 pt-6 border-t border-gray-200 space-y-2">
-        <h2 class="font-semibold text-gray-900 flex items-center">
-          <i class="fas fa-truck text-primary mr-2"></i> Delivery & Returns
-        </h2>
-        <ul class="space-y-1.5 text-gray-600 text-sm">
-          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> Free shipping on orders over ₹500</li>
-          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> 30-day easy returns</li>
-          <li class="flex"><i class="fas fa-check-circle text-green-500 mt-0.5 mr-2"></i> Cash on delivery available</li>
-        </ul>
-      </div>
-
-      <div class="mt-8 pt-4 border-t border-gray-200" id="product-action-container">
-        {% if in_cart %}
-          <div class="flex items-center justify-between max-w-xs mx-auto w-full">
-            <span class="text-gray-700 font-medium">In Cart:</span>
-            <div class="flex items-center border rounded-lg overflow-hidden">
-              <button id="dec-btn" class="px-3 py-2 hover:bg-gray-100 {% if cart_quantity <= 1 %}disabled:opacity-50{% endif %}"
-                {% if cart_quantity <= 1 %}disabled{% endif %}>
-                <i class="fas fa-minus text-gray-600"></i>
-              </button>
-              <span id="quantity-display" class="px-4 py-2 font-bold">{{ cart_quantity }}</span>
-              <button id="inc-btn" class="px-3 py-2 hover:bg-gray-100">
-                <i class="fas fa-plus text-primary"></i>
-              </button>
-            </div>
-          </div>
-          <a href="{{ url_for('cart') }}"
-            class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-center transition flex items-center justify-center">
-            <i class="fas fa-shopping-cart mr-2"></i> Go to Cart
-          </a>
-        {% else %}
-          <button
-            id="add-to-cart-btn"
-            class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-lg transition flex items-center justify-center shadow-md hover:shadow-lg"
-            disabled
-            aria-disabled="true"
-          >
-            <i class="fas fa-cart-plus mr-2"></i> Add to Cart
-          </button>
-        {% endif %}
-      </div>
-    </div>
-  </div>
+<div class="max-w-6xl mx-auto">
+<nav class="mb-6 text-sm">
+<a href="{{ url_for('products') }}" class="text-primary hover:underline">Home</a>
+<span class="mx-2 text-gray-400">/</span>
+<a href="{{ url_for('products') }}" class="text-primary hover:underline">Products</a>
+<span class="mx-2 text-gray-400">/</span>
+<span class="text-gray-600">{{ product.name }}</span>
+</nav>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 bg-white rounded-xl shadow-lg p-6 md:p-10">
+<div class="flex items-center justify-center bg-gray-50 rounded-lg p-8">
+<img src="{{ product.image }}" alt="{{ product.name }}" class="max-w-full max-h-96 object-contain">
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-const productId = {{ product.id }};
-const variants = {{ product.variants | tojson if product.variants else '[]' }};
-const colorContainer = document.getElementById('color-options');
-const sizeSection = document.getElementById('size-section');
-const sizeContainer = document.getElementById('size-options');
-const selectedInput = document.getElementById('selected-variant');
-const addToCartBtn = document.getElementById('add-to-cart-btn');
-
-let selectedColor = null;
-let selectedSize = null;
-
-if (variants.length > 0) {
-const colors = [...new Set(variants.map(v => v.color))];
-colors.forEach(color => {
-const btn = document.createElement('button');
-btn.type = 'button';
-btn.className = 'px-4 py-2 border rounded-lg hover:bg-gray-50 transition';
-btn.textContent = color;
-btn.dataset.color = color;
-btn.addEventListener('click', handleColorSelect);
-colorContainer.appendChild(btn);
-});
-}
-
-function handleColorSelect(e) {
-document.querySelectorAll('#color-options button').forEach(b => b.classList.remove('bg-primary','text-white','border-primary'));
-sizeContainer.innerHTML = '';
-sizeSection.classList.add('hidden');
-selectedInput.value = '';
-addToCartBtn.disabled = true;
-
-selectedColor = e.target.dataset.color;
-e.target.classList.add('bg-primary','text-white','border-primary');
-
-const sizes = [...new Set(variants.filter(v => v.color === selectedColor).map(v => v.size))];
-sizes.forEach(size => {
-const btn = document.createElement('button');
-btn.type = 'button';
-btn.className = 'px-4 py-2 border rounded-lg hover:bg-gray-50 transition';
-btn.textContent = size;
-btn.dataset.size = size;
-btn.addEventListener('click', handleSizeSelect);
-sizeContainer.appendChild(btn);
-});
-sizeSection.classList.remove('hidden');
-}
-
-function handleSizeSelect(e) {
-document.querySelectorAll('#size-options button').forEach(b => b.classList.remove('bg-primary','text-white','border-primary'));
-selectedSize = e.target.dataset.size;
-e.target.classList.add('bg-primary','text-white','border-primary');
-
-const matched = variants.find(v => v.color === selectedColor && v.size === selectedSize);
-if (matched) {
-selectedInput.value = JSON.stringify(matched);
-addToCartBtn.disabled = false;
-}
-}
-
-async function handleAddToCart() {
-const variantStr = selectedInput.value;
-if (!variantStr) {
-window.globalCart?.showToast('Please select color and size', 'error');
-return;
-}
-const btn = addToCartBtn;
-const original = btn.innerHTML;
-btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
-btn.disabled = true;
-
-try {
-const variant = JSON.parse(variantStr);
-await window.globalCart.addToCart(productId, 1, variant);
-renderQuantityControls(1);
-} catch (error) {
-console.error('Add failed:', error);
-btn.innerHTML = original;
-btn.disabled = false;
-window.globalCart?.showToast('Failed to add item', 'error');
-}
-}
-
-function renderQuantityControls(initialQty = 1) {
-let qty = initialQty;
-const container = document.getElementById('product-action-container');
-container.innerHTML = `
-<div class="flex items-center justify-between max-w-xs mx-auto w-full">
-<span class="text-gray-700 font-medium">In Cart:</span>
-<div class="flex items-center border rounded-lg overflow-hidden">
-<button id="dec-btn" class="px-3 py-2 hover:bg-gray-100 ${qty <= 1 ? 'disabled:opacity-50' : ''}" ${qty <= 1 ? 'disabled' : ''}>
-<i class="fas fa-minus text-gray-600"></i>
+<div class="space-y-6">
+<div>
+<h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{{ product.name }}</h1>
+<p class="text-gray-600 leading-relaxed">{{ product.description }}</p>
+</div>
+<div class="border-t border-b border-gray-200 py-4">
+<span class="text-4xl font-bold text-primary">₹{{ product.price }}</span>
+</div>
+{% if product.variants and product.variants|length > 0 %}
+<div>
+<label class="block text-gray-700 font-semibold mb-3">Select Variant:</label>
+<div class="grid grid-cols-1 gap-3">
+{% for variant in product.variants %}
+<label class="border-2 rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition flex items-center space-x-3 variant-label">
+<input
+type="radio"
+name="selected-variant"
+value='{{ variant | tojson }}'
+class="w-5 h-5 text-primary focus:ring-primary variant-radio"
+{% if loop.first %}checked{% endif %}
+>
+<span class="text-gray-800 font-medium">
+{{ variant.color }}{% if variant.size %} • {{ variant.size }}{% endif %}
+</span>
+</label>
+{% endfor %}
+</div>
+</div>
+{% endif %}
+<div>
+<label class="block text-gray-700 font-semibold mb-3">Quantity:</label>
+<div class="flex items-center space-x-4">
+<div class="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden">
+<button
+id="dec-btn"
+class="px-4 py-3 bg-gray-100 hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+disabled
+>
+<i class="fas fa-minus text-gray-700"></i>
 </button>
-<span id="quantity-display" class="px-4 py-2 font-bold">${qty}</span>
-<button id="inc-btn" class="px-3 py-2 hover:bg-gray-100">
+<span id="quantity-display" class="px-6 py-3 font-bold text-lg min-w-[3rem] text-center">1</span>
+<button id="inc-btn" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 transition">
 <i class="fas fa-plus text-primary"></i>
 </button>
 </div>
 </div>
-<a href="/cart" class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-center transition flex items-center justify-center">
-<i class="fas fa-shopping-cart mr-2"></i> Go to Cart
-</a>
-<a href="/" class="mt-3 w-full text-center py-2 text-gray-600 hover:text-primary font-medium transition">← Continue Shopping</a>
-`;
-document.getElementById('dec-btn').addEventListener('click', () => {
-if (qty > 1) {
-qty--;
-document.getElementById('quantity-display').textContent = qty;
-const dec = document.getElementById('dec-btn');
-dec.disabled = qty <= 1;
-dec.classList.toggle('disabled:opacity-50', qty <= 1);
-const variant = JSON.parse(selectedInput.value);
-window.globalCart.updateItemQuantity(productId, qty, variant);
-} else {
-const variant = JSON.parse(selectedInput.value);
-window.globalCart.updateItemQuantity(productId, 0, variant);
-location.reload();
-}
-});
-document.getElementById('inc-btn').addEventListener('click', () => {
-qty++;
-document.getElementById('quantity-display').textContent = qty;
-document.getElementById('dec-btn').disabled = false;
-document.getElementById('dec-btn').classList.remove('disabled:opacity-50');
-const variant = JSON.parse(selectedInput.value);
-window.globalCart.updateItemQuantity(productId, qty, variant);
-});
+</div>
+<button
+id="add-to-cart-btn"
+class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-4 rounded-lg transition transform hover:scale-105 shadow-md"
+>
+<i class="fas fa-shopping-cart mr-2"></i>Add to Cart
+</button>
+</div>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+const productId = {{ product.id }};
+let qty = 1;
+let isInCart = false;
+const qtyDisplay = document.getElementById('quantity-display');
+const decBtn = document.getElementById('dec-btn');
+const incBtn = document.getElementById('inc-btn');
+const addToCartBtn = document.getElementById('add-to-cart-btn');
+const variantRadios = document.querySelectorAll('.variant-radio');
+
+// Get selected variant
+function getSelectedVariant() {
+const selectedInput = document.querySelector('input[name="selected-variant"]:checked');
+return selectedInput ? JSON.parse(selectedInput.value) : null;
 }
 
-if (addToCartBtn) {
-addToCartBtn.addEventListener('click', handleAddToCart);
+// Compare variants
+function variantsMatch(v1, v2) {
+if (!v1 && !v2) return true;
+if (!v1 || !v2) return false;
+return JSON.stringify(v1) === JSON.stringify(v2);
 }
+
+// Check if item is in cart
+async function checkCartStatus() {
+try {
+const response = await fetch('/api/cart/state');
+const data = await response.json();
+if (data.success) {
+const variant = getSelectedVariant();
+const cartItem = data.cart.find(item => {
+return item.id === productId && variantsMatch(item.variant, variant);
+});
+
+if (cartItem) {
+isInCart = true;
+qty = cartItem.quantity;
+qtyDisplay.textContent = qty;
+decBtn.disabled = qty <= 1;
+addToCartBtn.innerHTML = '<i class="fas fa-check mr-2"></i>In Cart';
+} else {
+isInCart = false;
+qty = 1;
+qtyDisplay.textContent = qty;
+decBtn.disabled = true;
+addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i>Add to Cart';
+}
+}
+} catch (error) {
+console.error('Error checking cart:', error);
+}
+}
+
+// Update quantity (for items already in cart)
+async function updateQuantity(newQty) {
+if (!isInCart) {
+// If not in cart, just update local display
+qty = newQty;
+qtyDisplay.textContent = qty;
+decBtn.disabled = qty <= 1;
+return true;
+}
+
+// If in cart, update via API
+try {
+const variant = getSelectedVariant();
+const response = await fetch('/update-cart', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+product_id: productId,
+quantity: newQty,
+variant: variant
+})
+});
+
+const data = await response.json();
+if (data.success) {
+qty = newQty;
+qtyDisplay.textContent = qty;
+decBtn.disabled = qty <= 1;
+// Update global cart
+if (window.globalCart) {
+window.globalCart.loadCart();
+}
+return true;
+} else {
+// If update fails (item not in cart), treat as not in cart
+if (data.message && data.message.includes('not found')) {
+isInCart = false;
+qty = newQty;
+qtyDisplay.textContent = qty;
+decBtn.disabled = qty <= 1;
+addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i>Add to Cart';
+return true;
+}
+alert(data.message || 'Failed to update cart');
+return false;
+}
+} catch (error) {
+console.error('Error updating cart:', error);
+alert('Failed to update cart');
+return false;
+}
+}
+
+// Add to cart or update quantity
+async function handleAddToCart() {
+try {
+const variant = getSelectedVariant();
+const response = await fetch('/api/cart/add', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+product_id: productId,
+quantity: qty,
+variant: variant
+})
+});
+
+const data = await response.json();
+if (data.success) {
+isInCart = true;
+addToCartBtn.innerHTML = '<i class="fas fa-check mr-2"></i>In Cart';
+if (window.globalCart) {
+window.globalCart.loadCart();
+}
+} else {
+alert(data.error || 'Failed to add to cart');
+}
+} catch (error) {
+console.error('Error adding to cart:', error);
+alert('Failed to add to cart');
+}
+}
+
+// Decrement button
+decBtn.addEventListener('click', async () => {
+if (qty > 1) {
+await updateQuantity(qty - 1);
+}
+});
+
+// Increment button
+incBtn.addEventListener('click', async () => {
+await updateQuantity(qty + 1);
+});
+
+// Add to cart button - only adds, doesn't update
+addToCartBtn.addEventListener('click', async () => {
+if (isInCart) {
+// If already in cart, update the quantity
+await updateQuantity(qty);
+} else {
+// If not in cart, add it
+await handleAddToCart();
+}
+});
+
+// Variant change handler
+variantRadios.forEach(radio => {
+radio.addEventListener('change', () => {
+checkCartStatus();
+});
+});
+
+// Initial cart check
+checkCartStatus();
 });
 </script>
 {% endblock %}

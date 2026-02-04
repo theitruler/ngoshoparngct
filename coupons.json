@@ -22,5 +22,27 @@
     "R7M0CV9B3R",
     "S4K1DF8G6T",
     "T0J5NH2W8L"
+  ],
+  "10_percent": [
+    "U1A2B3C4D5",
+    "V6E7F8G9H0",
+    "W2I3J4K5L6",
+    "X7M8N9O0P1",
+    "Y3Q4R5S6T7",
+    "Z8U9V0W1X2",
+    "AA1BB2CC3D",
+    "DD4EE5FF6G",
+    "GG7HH8II9J",
+    "JJ0KK1LL2M"
+  ],
+  "bogo_hoodie": [
+    "HOODIE50",
+    "FREEHOODIE",
+    "HOODIEBOGO"
+  ],
+  "bogo_cap": [
+    "CAPBOGO",
+    "FREECAP",
+    "CAP50"
   ]
 }

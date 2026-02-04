@@ -8,7 +8,8 @@
     "variants": [
       { "color": "Black", "size": "Standard", "sku": "EARBUDS-BLK-STD" },
       { "color": "White", "size": "Standard", "sku": "EARBUDS-WHT-STD" }
-    ]
+    ],
+    "tags": ["electronics"]
   },
   {
     "id": 2,
@@ -19,7 +20,8 @@
     "variants": [
       { "color": "Silver", "size": "42mm", "sku": "WATCH-SLV-42" },
       { "color": "Black", "size": "46mm", "sku": "WATCH-BLK-46" }
-    ]
+    ],
+    "tags": ["electronics"]
   },
   {
     "id": 3,
@@ -30,7 +32,8 @@
     "variants": [
       { "color": "Navy", "size": "13-inch", "sku": "SLEEVE-NVY-13" },
       { "color": "Gray", "size": "15-inch", "sku": "SLEEVE-GRY-15" }
-    ]
+    ],
+    "tags": ["accessory"]
   },
   {
     "id": 4,
@@ -41,6 +44,31 @@
     "variants": [
       { "color": "Red", "size": "A5", "sku": "NOTE-RD-A5" },
       { "color": "Green", "size": "A4", "sku": "NOTE-GN-A4" }
-    ]
+    ],
+    "tags": ["stationery"]
+  },
+  {
+    "id": 5,
+    "name": "Premium Cotton Hoodie",
+    "price": 1499,
+    "image": "https://via.placeholder.com/150/aaaaaa?text=Hoodie",
+    "description": "Soft fleece hoodie with front pocket and drawstring hood",
+    "variants": [
+      { "color": "Black", "size": "M", "sku": "HD-BLK-M" },
+      { "color": "Gray", "size": "L", "sku": "HD-GRY-L" }
+    ],
+    "tags": ["hoodie"]
+  },
+  {
+    "id": 6,
+    "name": "Adjustable Baseball Cap",
+    "price": 599,
+    "image": "https://via.placeholder.com/150/bbbbbb?text=Cap",
+    "description": "Breathable cotton cap with adjustable strap and embroidered logo",
+    "variants": [
+      { "color": "Navy", "size": "One Size", "sku": "CAP-NVY-OS" },
+      { "color": "Black", "size": "One Size", "sku": "CAP-BLK-OS" }
+    ],
+    "tags": ["cap"]
   }
 ]
