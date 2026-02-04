@@ -1,30 +1,46 @@
-    [
+[
   {
     "id": 1,
     "name": "Wireless Earbuds",
     "price": 2499,
     "image": "https://via.placeholder.com/150/92c952?text=Earbuds",
-    "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof"
+    "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof",
+    "variants": [
+      { "color": "Black", "size": "Standard", "sku": "EARBUDS-BLK-STD" },
+      { "color": "White", "size": "Standard", "sku": "EARBUDS-WHT-STD" }
+    ]
   },
   {
     "id": 2,
-    "name": "Smart Apple",
+    "name": "Smart Watch",
     "price": 4999,
     "image": "https://via.placeholder.com/150/771796?text=Watch",
-    "description": "Heart rate monitor, GPS, 7-day battery"
+    "description": "Heart rate monitor, GPS, 7-day battery",
+    "variants": [
+      { "color": "Silver", "size": "42mm", "sku": "WATCH-SLV-42" },
+      { "color": "Black", "size": "46mm", "sku": "WATCH-BLK-46" }
+    ]
   },
   {
     "id": 3,
     "name": "Laptop Sleeve",
     "price": 899,
     "image": "https://via.placeholder.com/150/d32776?text=Sleeve",
-    "description": "Water-resistant, fits 15-inch laptops"
+    "description": "Water-resistant, fits 15-inch laptops",
+    "variants": [
+      { "color": "Navy", "size": "13-inch", "sku": "SLEEVE-NVY-13" },
+      { "color": "Gray", "size": "15-inch", "sku": "SLEEVE-GRY-15" }
+    ]
   },
   {
     "id": 4,
-    "name": "Ashish",
-    "price": 1,
-    "image": "https://via.placeholder.com/150/d32776?text=Sleeve",
-    "description": "Water-resistant, fits 15-inch laptops"
+    "name": "Premium Notebook",
+    "price": 399,
+    "image": "https://via.placeholder.com/150/f6d674?text=Notebook",
+    "description": "Hardcover, 120 pages, recycled paper",
+    "variants": [
+      { "color": "Red", "size": "A5", "sku": "NOTE-RD-A5" },
+      { "color": "Green", "size": "A4", "sku": "NOTE-GN-A4" }
+    ]
   }
 ]

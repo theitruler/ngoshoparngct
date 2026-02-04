@@ -24,6 +24,7 @@ if os.getenv('FLASK_ENV', 'production').strip().lower() == 'development' and os.
 FLASK_ENV = os.getenv('FLASK_ENV', 'production').strip().lower()
 IS_DEV = FLASK_ENV == 'development'
 app = Flask(__name__)
+app.jinja_env.add_extension('jinja2.ext.do') 
 
 # SECRET_KEY HANDLING WITH STRICT VALIDATION
 if IS_DEV:
@@ -87,8 +88,19 @@ def init_cart():
         session['cart'] = []
 
 # ======================
-# API ENDPOINTS (CRITICAL FIXES)
+# HELPER: Compare variants (for cart logic)
 # ======================
+def variants_match(v1, v2):
+    if v1 is None and v2 is None:
+        return True
+    if v1 is None or v2 is None:
+        return False
+    return v1 == v2
+
+# ======================
+# API ENDPOINTS (CRITICAL FIXES + VARIANT SUPPORT)
+# ======================
+
 @app.route('/api/cart/state')
 def get_cart_state():
     cart = session.get('cart', [])
@@ -107,28 +119,44 @@ def add_to_cart():
         data = request.get_json()
         if not data or 'product_id' not in data:
             return jsonify({'success': False, 'error': 'Invalid request payload'}), 400
+
         product_id = int(data['product_id'])
         quantity = int(data.get('quantity', 1))
+        variant = data.get('variant')  # May be dict or None
+
         if quantity < 1:
             return jsonify({'success': False, 'error': 'Quantity must be at least 1'}), 400
+
         product = next((p for p in PRODUCTS if p['id'] == product_id), None)
         if not product:
             return jsonify({'success': False, 'error': 'Product not found in catalog'}), 404
+
         cart = session.get('cart', [])
+
+        # Check if same product + same variant already exists
+        existing_item = None
         for item in cart:
-            if item['id'] == product_id:
-                item['quantity'] += quantity
+            if item['id'] == product_id and variants_match(item.get('variant'), variant):
+                existing_item = item
                 break
+
+        if existing_item:
+            existing_item['quantity'] += quantity
         else:
-            cart.append({
+            new_item = {
                 'id': product_id,
                 'name': product['name'],
                 'price': product['price'],
                 'quantity': quantity,
                 'image': product['image']
-            })
+            }
+            if variant is not None:
+                new_item['variant'] = variant
+            cart.append(new_item)
+
         session['cart'] = cart
         session.modified = True
+
         cart_dict = {item['id']: item['quantity'] for item in cart}
         distinct_count = len(cart)
         return jsonify({
@@ -136,7 +164,7 @@ def add_to_cart():
             'cart_count': distinct_count,
             'cart_dict': cart_dict,
             'message': f"{product['name']} added to cart!",
-            'quantity': next(item['quantity'] for item in cart if item['id'] == product_id)
+            'quantity': next(item['quantity'] for item in cart if item['id'] == product_id and variants_match(item.get('variant'), variant))
         })
     except (ValueError, TypeError):
         return jsonify({'success': False, 'error': 'Invalid data format'}), 400
@@ -150,40 +178,58 @@ def update_cart():
         data = request.get_json()
         if not data or 'product_id' not in data or 'quantity' not in data:
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
         product_id = int(data['product_id'])
         new_quantity = int(data['quantity'])
+        variant = data.get('variant')  # Optional: used when adding new item
+
         if new_quantity < 0:
             return jsonify({'success': False, 'error': 'Invalid quantity value'}), 400
+
         cart = session.get('cart', [])
         item_found = False
+
         if new_quantity == 0:
             original_length = len(cart)
-            cart = [item for item in cart if item['id'] != product_id]
+            cart = [
+                item for item in cart
+                if not (item['id'] == product_id and variants_match(item.get('variant'), variant))
+            ]
             item_found = (len(cart) < original_length)
         else:
             for item in cart:
-                if item['id'] == product_id:
+                if item['id'] == product_id and variants_match(item.get('variant'), variant):
                     item['quantity'] = new_quantity
                     item_found = True
                     break
+
             if not item_found:
                 product = next((p for p in PRODUCTS if p['id'] == product_id), None)
                 if not product:
                     return jsonify({'success': False, 'error': 'Product not found'}), 404
-                cart.append({
+                new_item = {
                     'id': product_id,
                     'name': product['name'],
                     'price': product['price'],
                     'quantity': new_quantity,
                     'image': product['image']
-                })
+                }
+                if variant is not None:
+                    new_item['variant'] = variant
+                cart.append(new_item)
                 item_found = True
+
         session['cart'] = cart
         session.modified = True
+
         cart_dict = {item['id']: item['quantity'] for item in cart}
         distinct_count = len(cart)
         subtotal = sum(item['price'] * item['quantity'] for item in cart)
-        item_total = next((item['price'] * item['quantity'] for item in cart if item['id'] == product_id), 0) if new_quantity > 0 else 0
+        item_total = next(
+            (item['price'] * item['quantity'] for item in cart if item['id'] == product_id and variants_match(item.get('variant'), variant)),
+            0
+        ) if new_quantity > 0 else 0
+
         return jsonify({
             'success': True,
             'cart_count': distinct_count,
@@ -240,6 +286,7 @@ def validate_coupon():
 # ======================
 # PAGE ROUTES
 # ======================
+
 @app.route('/')
 def products():
     cart = session.get('cart', [])
@@ -274,19 +321,20 @@ def personal_detail():
     return render_template('personal_detail.html')
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# UPDATED ROUTE: Added 'id' (UUID) and 'payment': False to webhook payload
+# UPDATED ROUTE: Send VARIANT in webhook payload
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 @app.route('/personal-detail/submit', methods=['POST'])
 def submit_personal_detail():
     cart_items = session.get('cart', [])
     if not cart_items:
         return redirect(url_for('cart'))
+    
     full_name = request.form.get('full_name', '').strip()
     address = request.form.get('address', '').strip()
     city = request.form.get('city', '').strip()
     postal_code = request.form.get('postal_code', '').strip()
     phone = request.form.get('phone', '').strip()
-
+    
     if not all([full_name, address, city, postal_code, phone]):
         return redirect(url_for('error_page', message='All personal details are required.'))
 
@@ -296,10 +344,10 @@ def submit_personal_detail():
     # ✅ Generate a unique order ID
     order_id = str(uuid.uuid4())
 
-    # Prepare webhook payload with new fields
+    # Prepare webhook payload — INCLUDE VARIANT FOR EACH ITEM
     webhook_payload = {
-        "id": order_id,  # <-- UNIQUE ORDER ID
-        "payment": False,  # <-- PAYMENT STATUS (DEFAULT: FALSE)
+        "id": order_id,
+        "payment": 'False',
         "personal_details": {
             "full_name": full_name,
             "address": address,
@@ -314,7 +362,8 @@ def submit_personal_detail():
                     "name": item['name'],
                     "price": item['price'],
                     "quantity": item['quantity'],
-                    "total_price": item['price'] * item['quantity']
+                    "total_price": item['price'] * item['quantity'],
+                    "variant": item.get('variant')  # <-- SEND VARIANT IF EXISTS
                 }
                 for item in cart_items
             ],
@@ -324,7 +373,7 @@ def submit_personal_detail():
         }
     }
 
-    # Send to webhook if URL is configured
+    # Send to webhook
     webhook_url = 'http://n8n-x0owwcgwcg4s4o8w4g80g4go.93.127.185.52.sslip.io/webhook/demo'
     if webhook_url:
         try:
@@ -341,7 +390,7 @@ def submit_personal_detail():
     else:
         app.logger.warning("WEBHOOK_URL not set – skipping webhook")
 
-    # Store in session (optional)
+    # Store in session
     session['personal_details'] = {
         'full_name': full_name,
         'address': address,
@@ -351,7 +400,6 @@ def submit_personal_detail():
     }
     session.modified = True
 
-    # Redirect to payment page
     return redirect(url_for('payment'))
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -360,12 +408,9 @@ def payment():
     cart_items = session.get('cart', [])
     if not cart_items:
         return redirect(url_for('cart'))
-    
     subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
     amount_paise = int(subtotal * 100)
-    
     personal_details = session.get('personal_details', {})
-    
     return render_template(
         'payment.html',
         amount=amount_paise,
@@ -374,7 +419,7 @@ def payment():
     )
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# PAYMENT SUCCESS HANDLER: Clear cart & redirect to home
+# PAYMENT SUCCESS HANDLER
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 @app.route('/payment/success', methods=['POST'])
 def payment_success():
@@ -383,14 +428,9 @@ def payment_success():
         if not data or 'razorpay_payment_id' not in data:
             app.logger.warning("Invalid payment success payload")
             return jsonify({'success': False}), 400
-
-        # Optional: In production, verify Razorpay signature here using RAZORPAY_KEY_SECRET
-
-        # Clear cart and personal details from session
         session.pop('cart', None)
         session.pop('personal_details', None)
         session.modified = True
-
         return jsonify({'success': True}), 200
     except Exception as e:
         app.logger.error(f"Payment success handler error: {str(e)}")
@@ -430,9 +470,9 @@ def health_check():
 if __name__ == '__main__':
     if IS_DEV and not os.path.exists('products.json'):
         sample_products = [
-            {"id": 1, "name": "Wireless Earbuds", "price": 2499, "image": "https://via.placeholder.com/150/92c952?text=Earbuds", "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof"},
-            {"id": 2, "name": "Smart Watch", "price": 4999, "image": "https://via.placeholder.com/150/771796?text=Watch", "description": "Heart rate monitor, GPS, 7-day battery"},
-            {"id": 3, "name": "Laptop Sleeve", "price": 899, "image": "https://via.placeholder.com/150/d32776?text=Sleeve", "description": "Water-resistant, fits 15-inch laptops"}
+            {"id": 1, "name": "Wireless Earbuds", "price": 2499, "image": "https://via.placeholder.com/150/92c952?text=Earbuds", "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof", "variants": [{"color": "Black", "size": "Standard"}, {"color": "White", "size": "Standard"}]},
+            {"id": 2, "name": "Smart Watch", "price": 4999, "image": "https://via.placeholder.com/150/771796?text=Watch", "description": "Heart rate monitor, GPS, 7-day battery", "variants": [{"color": "Silver", "size": "42mm"}, {"color": "Black", "size": "46mm"}]},
+            {"id": 3, "name": "Laptop Sleeve", "price": 899, "image": "https://via.placeholder.com/150/d32776?text=Sleeve", "description": "Water-resistant, fits 15-inch laptops", "variants": [{"color": "Navy", "size": "13-inch"}, {"color": "Gray", "size": "15-inch"}]}
         ]
         with open('products.json', 'w') as f:
             json.dump(sample_products, f, indent=2)

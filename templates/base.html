@@ -43,6 +43,8 @@ crossorigin="anonymous" referrerpolicy="no-referrer">
 <!-- Preload critical fonts -->
 <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
 </head>
+<!-- Include Right Sidebar -->
+{% include 'rightsidebar.html' %}
 <body class="bg-gray-50">
 <!-- Toast Notification -->
 <div id="toast" class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center">
@@ -82,42 +84,46 @@ crossorigin="anonymous" referrerpolicy="no-referrer">
 </footer>
 <script>
 // ======================
-// PRODUCTION-GRADE CART MANAGER
+// PRODUCTION-GRADE CART MANAGER (VARIANT-SAFE)
 // ======================
 class GlobalCartManager {
 constructor() {
 this.cartBadge = document.getElementById('cart-badge');
 this.cartLink = document.getElementById('cart-link');
-this.cartState = {}; // { productId: quantity }
+this.distinctCount = 0; // ← Track actual distinct item count (supports variants)
 this.syncing = false;
 this.init();
 }
 async init() {
-// ALWAYS fetch fresh state on load (bypass cache)
 await this.refreshCartState();
-
-// ✅ CRITICAL FIX: Dispatch globalCartSync AFTER initial load
 document.dispatchEvent(new CustomEvent('globalCartSync', {
-detail: {
-cartState: { ...this.cartState },
-cartCount: Object.keys(this.cartState).length,
-source: 'initial_load'
-}
+detail: { cartCount: this.distinctCount, source: 'initial_load' }
 }));
-
-// Listen for cart operations from ANY component
-document.addEventListener('cartAction', async (e) => {
+document.addEventListener('cartAction', this.handleCartAction.bind(this));
+document.addEventListener('visibilitychange', () => {
+if (document.visibilityState === 'visible' && !this.syncing) {
+this.refreshCartState().then(() => {
+document.dispatchEvent(new CustomEvent('globalCartSync', {
+detail: { cartCount: this.distinctCount, source: 'visibility_change' }
+}));
+});
+}
+});
+}
+async handleCartAction(e) {
 if (this.syncing) return;
-const { productId, quantity, action } = e.detail;
+const { productId, quantity, action, variant } = e.detail;
 try {
 this.syncing = true;
 let endpoint, payload;
 if (action === 'add') {
 endpoint = '/api/cart/add';
 payload = { product_id: productId, quantity: quantity || 1 };
+if (variant) payload.variant = variant;
 } else if (action === 'update') {
 endpoint = '/api/cart/update';
 payload = { product_id: productId, quantity: quantity };
+if (variant) payload.variant = variant;
 } else if (action === 'clear') {
 endpoint = '/api/cart/clear';
 payload = {};
@@ -126,10 +132,7 @@ throw new Error('Invalid cart action');
 }
 const response = await fetch(endpoint, {
 method: 'POST',
-headers: {
-'Content-Type': 'application/json',
-'X-Requested-With': 'XMLHttpRequest'
-},
+headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify(payload),
 credentials: 'same-origin'
 });
@@ -139,17 +142,10 @@ throw new Error(err.error || `HTTP ${response.status}`);
 }
 const data = await response.json();
 if (!data.success) throw new Error(data.error || 'Operation failed');
-// FULL STATE REFRESH after mutation
 await this.refreshCartState();
-// Dispatch global sync event
 document.dispatchEvent(new CustomEvent('globalCartSync', {
-detail: {
-cartState: { ...this.cartState },
-cartCount: data.cart_count || 0,
-source: action
-}
+detail: { cartCount: this.distinctCount, source: action }
 }));
-// Show toast if available
 if (data.message) this.showToast(data.message, 'success');
 } catch (error) {
 console.error('Cart action failed:', error);
@@ -157,46 +153,20 @@ this.showToast(error.message || 'Update failed. Please try again.', 'error');
 } finally {
 this.syncing = false;
 }
-});
-
-// Handle page visibility changes (tab switch/back button)
-document.addEventListener('visibilitychange', () => {
-if (document.visibilityState === 'visible' && !this.syncing) {
-this.refreshCartState().then(() => {
-document.dispatchEvent(new CustomEvent('globalCartSync', {
-detail: {
-cartState: { ...this.cartState },
-cartCount: Object.keys(this.cartState).length,
-source: 'visibility_change'
-}
-}));
-});
-}
-});
 }
 async refreshCartState() {
 try {
-// Bypass cache with timestamp + cache-control headers
 const response = await fetch(`/api/cart/state?_t=${Date.now()}`, {
-headers: {
-'Cache-Control': 'no-cache, no-store, must-revalidate',
-'Pragma': 'no-cache',
-'Expires': '0'
-},
+headers: { 'Cache-Control': 'no-cache' },
 credentials: 'same-origin'
 });
 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 const data = await response.json();
-if (!data.success) throw new Error('Invalid cart state response');
-// Update local state
-this.cartState = data.cart_dict || {};
-this.updateBadge(data.distinct_count || 0);
+if (!data.success) throw new Error('Invalid cart state');
+this.distinctCount = data.distinct_count || 0; // ← Use server-provided count
+this.updateBadge(this.distinctCount);
 } catch (error) {
 console.warn('Failed to refresh cart state:', error);
-// Don't show toast on init failures to avoid spam
-if (!document.documentElement.classList.contains('cart-initialized')) {
-document.documentElement.classList.add('cart-initialized');
-}
 }
 }
 updateBadge(count) {
@@ -209,9 +179,8 @@ this.cartLink.appendChild(this.cartBadge);
 }
 this.cartBadge.textContent = count;
 this.cartBadge.setAttribute('aria-label', `${count} item${count !== 1 ? 's' : ''} in cart`);
-// Reset pulse animation
 this.cartBadge.classList.remove('animate-cart-pulse');
-void this.cartBadge.offsetWidth; // Trigger reflow
+void this.cartBadge.offsetWidth;
 this.cartBadge.classList.add('animate-cart-pulse');
 } else if (this.cartBadge) {
 this.cartBadge.remove();
@@ -220,61 +189,49 @@ this.cartBadge = null;
 }
 showToast(message, type = 'success') {
 const toast = document.getElementById('toast');
-const toastMessage = document.getElementById('toast-message');
-if (!toast || !toastMessage) return;
-toastMessage.textContent = message;
+const msg = document.getElementById('toast-message');
+if (!toast || !msg) return;
+msg.textContent = message;
 toast.className = `toast px-4 py-3 rounded-lg shadow-lg flex items-center ${
-type === 'success'
-? 'bg-green-500 text-white'
-: 'bg-red-500 text-white'
+type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
 }`;
 toast.classList.add('show');
-// Auto-dismiss after 3 seconds
-setTimeout(() => {
-if (toast.classList.contains('show')) {
-toast.classList.remove('show');
+setTimeout(() => toast.classList.remove('show'), 3000);
 }
-}, 3000);
-}
-// PUBLIC API - Used by all templates
-addToCart(productId, quantity = 1) {
+// PUBLIC API
+addToCart(productId, quantity = 1, variant = null) {
 document.dispatchEvent(new CustomEvent('cartAction', {
-detail: { productId, quantity, action: 'add' }
+detail: { productId, quantity, action: 'add', variant }
 }));
 }
-updateItemQuantity(productId, newQuantity) {
+updateItemQuantity(productId, newQuantity, variant = null) {
 document.dispatchEvent(new CustomEvent('cartAction', {
-detail: { productId, quantity: newQuantity, action: 'update' }
+detail: { productId, quantity: newQuantity, action: 'update', variant }
 }));
 }
 clearCart() {
-document.dispatchEvent(new CustomEvent('cartAction', {
-detail: { action: 'clear' }
-}));
+document.dispatchEvent(new CustomEvent('cartAction', { detail: { action: 'clear' } }));
 }
 }
-// Initialize SINGLE cart manager instance
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
 window.globalCart = new GlobalCartManager();
-// Initialize product cards
+// Product cards
 document.querySelectorAll('[data-product-card]').forEach(container => {
 const productId = parseInt(container.dataset.productId);
 if (!isNaN(productId)) {
 new ProductCardManager(productId, container);
 }
 });
-// Make product cards clickable (except cart controls)
 document.querySelectorAll('.product-card').forEach(card => {
 card.addEventListener('click', (e) => {
-if (e.target.closest('.add-to-cart-btn, .quantity-control, .quantity-dec, .quantity-inc, button, a')) return;
-const productId = card.dataset.productId;
-if (productId) window.location.href = `/product/${productId}`;
+if (e.target.closest('.add-to-cart-btn, .quantity-control, button, a')) return;
+const pid = card.dataset.productId;
+if (pid) window.location.href = `/product/${pid}`;
 });
 });
 });
-// ======================
-// PRODUCT CARD MANAGER
-// ======================
+// PRODUCT CARD MANAGER (keeps working as before — only uses add/update API)
 class ProductCardManager {
 constructor(productId, container) {
 this.productId = productId;
@@ -283,65 +240,54 @@ this.init();
 }
 init() {
 this.updateFromGlobalState();
-// Listen for GLOBAL sync events (handles back-button/cache)
-document.addEventListener('globalCartSync', () => {
-this.updateFromGlobalState();
-});
+document.addEventListener('globalCartSync', () => this.updateFromGlobalState());
 }
 updateFromGlobalState() {
-// CRITICAL FIX: Convert productId to string for proper lookup in cartState
-// (JavaScript object keys are always strings, even if numeric)
-const quantity = window.globalCart?.cartState?.[String(this.productId)] || 0;
-const currentUI = this.container.innerHTML;
-if (quantity > 0) {
-this.renderQuantityControls(quantity);
+// Still use cart_dict for quantity display (ok for non-variant products)
+// But badge uses distinct_count → safe
+fetch(`/api/cart/state?_t=${Date.now()}`, { credentials: 'same-origin' })
+.then(r => r.json())
+.then(data => {
+const item = data.cart?.find(i => i.id === this.productId);
+const qty = item ? item.quantity : 0;
+if (qty > 0) {
+this.renderQuantityControls(qty);
 } else {
 this.renderAddButton();
 }
-// Only log if state changed (avoid spam)
-if (currentUI !== this.container.innerHTML && console?.debug) {
-console.debug(`[Cart Sync] Product ${this.productId} updated to qty: ${quantity}`);
-}
+})
+.catch(() => this.renderAddButton());
 }
 renderAddButton() {
 this.container.innerHTML = `
 <button class="add-to-cart-btn bg-primary hover:bg-primary-dark text-white font-medium py-1.5 px-4 rounded-lg transition flex items-center text-sm w-full"
-data-product-id="${this.productId}" aria-label="Add ${this.productId} to cart">
+data-product-id="${this.productId}" aria-label="Add to cart">
 <i class="fas fa-cart-plus mr-1.5"></i> Add
-</button>
-`;
+</button>`;
 this.container.querySelector('.add-to-cart-btn')?.addEventListener('click', (e) => {
-e.stopPropagation();
-e.preventDefault();
+e.stopPropagation(); e.preventDefault();
 window.globalCart?.addToCart(this.productId, 1);
 });
 }
 renderQuantityControls(quantity) {
 this.container.innerHTML = `
 <div class="quantity-control flex items-center border rounded-lg overflow-hidden w-full max-w-24" data-product-id="${this.productId}">
-<button class="quantity-dec px-2 py-1 hover:bg-gray-100 ${quantity <= 1 ? 'disabled:opacity-50 cursor-not-allowed' : ''}"
-${quantity <= 1 ? 'disabled' : ''} aria-label="Decrease quantity">
+<button class="quantity-dec px-2 py-1 hover:bg-gray-100 ${quantity <= 1 ? 'disabled:opacity-50 cursor-not-allowed' : ''}" ${quantity <= 1 ? 'disabled' : ''}>
 <i class="fas fa-minus text-gray-600"></i>
 </button>
-<span class="px-3 py-1 border-x text-center w-8 font-medium" aria-live="polite">${quantity}</span>
-<button class="quantity-inc px-2 py-1 hover:bg-gray-100" aria-label="Increase quantity">
+<span class="px-3 py-1 border-x text-center w-8 font-medium">${quantity}</span>
+<button class="quantity-inc px-2 py-1 hover:bg-gray-100">
 <i class="fas fa-plus text-primary"></i>
 </button>
-</div>
-`;
-const decBtn = this.container.querySelector('.quantity-dec');
-const incBtn = this.container.querySelector('.quantity-inc');
-decBtn?.addEventListener('click', (e) => {
-e.stopPropagation();
-e.preventDefault();
-if (!decBtn.disabled) {
-const newQty = Math.max(0, quantity - 1);
-window.globalCart?.updateItemQuantity(this.productId, newQty);
-}
+</div>`;
+const dec = this.container.querySelector('.quantity-dec');
+const inc = this.container.querySelector('.quantity-inc');
+dec?.addEventListener('click', (e) => {
+e.stopPropagation(); e.preventDefault();
+if (!dec.disabled) window.globalCart?.updateItemQuantity(this.productId, quantity - 1);
 });
-incBtn?.addEventListener('click', (e) => {
-e.stopPropagation();
-e.preventDefault();
+inc?.addEventListener('click', (e) => {
+e.stopPropagation(); e.preventDefault();
 window.globalCart?.updateItemQuantity(this.productId, quantity + 1);
 });
 }
