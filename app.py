@@ -306,6 +306,32 @@ def remove_from_cart():
 
 
 
+@app.route('/clear-cart', methods=['POST'])
+def clear_cart_page():
+    """
+    Clear all items from cart (for cart.html page)
+    Returns: {success: bool, message: str}
+    """
+    try:
+        # Clear the cart in session
+        session['cart'] = []
+        session.modified = True
+        
+        return jsonify({
+            'success': True,
+            'subtotal': 0,
+            'cart_count': 0,
+            'message': 'Cart cleared successfully'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error clearing cart: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+
 @app.route('/api/cart/clear', methods=['POST'])
 def clear_cart():
     try:

@@ -2,7 +2,15 @@
 {% block title %}Cart{% endblock %}
 {% block content %}
 <div class="max-w-4xl mx-auto">
-  <h1 class="text-2xl font-bold text-gray-900 mb-6">Your Shopping Cart</h1>
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Your Shopping Cart</h1>
+    {% if cart_items %}
+      <button id="clear-cart-btn" class="text-red-600 hover:text-red-700 font-medium text-sm flex items-center gap-2 transition">
+        <i class="fas fa-trash-alt"></i>
+        Clear Cart
+      </button>
+    {% endif %}
+  </div>
 
   {% if cart_items %}
     <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -13,6 +21,7 @@
             <th class="p-4">Price</th>
             <th class="p-4">Quantity</th>
             <th class="p-4 text-right">Total</th>
+            <th class="p-4 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -45,6 +54,11 @@
                 </div>
               </td>
               <td class="p-4 text-right font-medium item-total">₹{{ "%.2f"|format(item.price * item.quantity) }}</td>
+              <td class="p-4 text-right">
+                <button class="delete-item-btn text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition" title="Remove item">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -79,9 +93,76 @@
   {% endif %}
 </div>
 
+<!-- Confirmation Modal -->
+<div id="confirmation-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+      </div>
+      <h3 class="text-xl font-bold text-gray-900" id="modal-title">Confirm Action</h3>
+    </div>
+    <p class="text-gray-600 mb-6" id="modal-message">Are you sure you want to proceed?</p>
+    <div class="flex gap-3">
+      <button id="modal-cancel" class="flex-1 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition">
+        Cancel
+      </button>
+      <button id="modal-confirm" class="flex-1 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition">
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Attach event listeners to all +/- buttons
+  // Modal elements
+  const modal = document.getElementById('confirmation-modal');
+  const modalTitle = document.getElementById('modal-title');
+  const modalMessage = document.getElementById('modal-message');
+  const modalCancel = document.getElementById('modal-cancel');
+  const modalConfirm = document.getElementById('modal-confirm');
+  
+  let currentAction = null;
+  let currentData = null;
+
+  // Show modal function
+  function showModal(title, message, action, data) {
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+    currentAction = action;
+    currentData = data;
+    modal.classList.remove('hidden');
+  }
+
+  // Hide modal function
+  function hideModal() {
+    modal.classList.add('hidden');
+    currentAction = null;
+    currentData = null;
+  }
+
+  // Modal cancel button
+  modalCancel.addEventListener('click', hideModal);
+
+  // Modal confirm button
+  modalConfirm.addEventListener('click', () => {
+    if (currentAction === 'delete-item') {
+      deleteItem(currentData.productId, currentData.variant, currentData.row);
+    } else if (currentAction === 'clear-cart') {
+      clearCart();
+    }
+    hideModal();
+  });
+
+  // Close modal on outside click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      hideModal();
+    }
+  });
+
+  // Quantity increment/decrement buttons
   document.querySelectorAll('.qty-inc, .qty-dec').forEach(button => {
     button.addEventListener('click', function(e) {
       e.preventDefault();
@@ -96,34 +177,71 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error parsing variant:', error);
       }
 
-      // Get current displayed quantity
       const qtySpan = row.querySelector('.qty-display');
       let currentQty = parseInt(qtySpan.textContent);
 
-      // Determine new quantity
       const isIncrement = this.classList.contains('qty-inc');
       const newQty = isIncrement ? currentQty + 1 : currentQty - 1;
 
-      // Don't allow quantity less than 1
       if (newQty < 1) return;
 
-      // Disable buttons to prevent double clicks
       const incBtn = row.querySelector('.qty-inc');
       const decBtn = row.querySelector('.qty-dec');
       incBtn.disabled = true;
       decBtn.disabled = true;
 
-      // Update cart via AJAX
       updateCartQuantity(productId, newQty, variant, row, incBtn, decBtn);
     });
   });
+
+  // Delete item buttons
+  document.querySelectorAll('.delete-item-btn').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      const row = this.closest('tr');
+      const productId = parseInt(row.dataset.productId);
+      let variant = null;
+      
+      try {
+        variant = JSON.parse(row.dataset.variant || 'null');
+      } catch (error) {
+        console.error('Error parsing variant:', error);
+      }
+
+      const productName = row.querySelector('td:first-child .font-medium').textContent;
+      
+      showModal(
+        'Remove Item',
+        `Are you sure you want to remove "${productName}" from your cart?`,
+        'delete-item',
+        { productId, variant, row }
+      );
+    });
+  });
+
+  // Clear cart button
+  const clearCartBtn = document.getElementById('clear-cart-btn');
+  if (clearCartBtn) {
+    clearCartBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      const itemCount = document.querySelectorAll('tbody tr').length;
+      
+      showModal(
+        'Clear Cart',
+        `Are you sure you want to remove all ${itemCount} item(s) from your cart?`,
+        'clear-cart',
+        null
+      );
+    });
+  }
 });
 
 /**
  * Update cart quantity via AJAX
  */
 function updateCartQuantity(productId, newQty, variant, row, incBtn, decBtn) {
-  // Prepare request data
   const requestData = {
     product_id: productId,
     quantity: newQty
@@ -133,7 +251,6 @@ function updateCartQuantity(productId, newQty, variant, row, incBtn, decBtn) {
     requestData.variant = variant;
   }
 
-  // Send AJAX request to update cart
   fetch('/update-cart', {
     method: 'POST',
     headers: {
@@ -144,16 +261,13 @@ function updateCartQuantity(productId, newQty, variant, row, incBtn, decBtn) {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
-      // Update the display optimistically
       const qtySpan = row.querySelector('.qty-display');
       qtySpan.textContent = newQty;
 
-      // Update item total
       const price = parseFloat(row.querySelector('td:nth-child(2)').textContent.replace('₹', ''));
       const itemTotal = row.querySelector('.item-total');
       itemTotal.textContent = '₹' + (price * newQty).toFixed(2);
 
-      // Update subtotal
       if (data.subtotal !== undefined) {
         const subtotalElement = document.getElementById('subtotal-amount');
         if (subtotalElement) {
@@ -161,17 +275,14 @@ function updateCartQuantity(productId, newQty, variant, row, incBtn, decBtn) {
         }
       }
 
-      // Update button states
       decBtn.disabled = newQty <= 1;
       incBtn.disabled = false;
       
-      // Update cart badge if exists
       if (data.cart_count !== undefined && window.updateCartBadge) {
         window.updateCartBadge(data.cart_count);
       }
     } else {
       alert('Failed to update cart: ' + (data.message || 'Unknown error'));
-      // Re-enable buttons
       incBtn.disabled = false;
       decBtn.disabled = false;
     }
@@ -179,25 +290,27 @@ function updateCartQuantity(productId, newQty, variant, row, incBtn, decBtn) {
   .catch(error => {
     console.error('Error updating cart:', error);
     alert('An error occurred while updating the cart. Please try again.');
-    // Re-enable buttons
     incBtn.disabled = false;
     decBtn.disabled = false;
   });
 }
 
-// Alternative: Simple page reload approach (uncomment if you prefer full page refresh)
-/*
-function updateCartQuantity(productId, newQty, variant, row, incBtn, decBtn) {
+/**
+ * Delete item from cart
+ */
+function deleteItem(productId, variant, row) {
   const requestData = {
-    product_id: productId,
-    quantity: newQty
+    product_id: productId
   };
   
   if (variant) {
     requestData.variant = variant;
   }
 
-  fetch('/update-cart', {
+  // Add fade-out animation
+  row.style.opacity = '0.5';
+  
+  fetch('/remove-from-cart', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -207,21 +320,69 @@ function updateCartQuantity(productId, newQty, variant, row, incBtn, decBtn) {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
-      // Simply reload the page to show updated cart
-      window.location.reload();
+      // Remove row with animation
+      row.style.transition = 'all 0.3s ease';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(-20px)';
+      
+      setTimeout(() => {
+        row.remove();
+        
+        // Check if cart is empty
+        const remainingItems = document.querySelectorAll('tbody tr');
+        if (remainingItems.length === 0) {
+          // Reload page to show empty cart message
+          window.location.reload();
+        } else {
+          // Update subtotal
+          if (data.subtotal !== undefined) {
+            const subtotalElement = document.getElementById('subtotal-amount');
+            if (subtotalElement) {
+              subtotalElement.textContent = '₹' + data.subtotal.toFixed(2);
+            }
+          }
+          
+          // Update cart badge
+          if (data.cart_count !== undefined && window.updateCartBadge) {
+            window.updateCartBadge(data.cart_count);
+          }
+        }
+      }, 300);
     } else {
-      alert('Failed to update cart: ' + (data.message || 'Unknown error'));
-      incBtn.disabled = false;
-      decBtn.disabled = false;
+      alert('Failed to remove item: ' + (data.message || 'Unknown error'));
+      row.style.opacity = '1';
     }
   })
   .catch(error => {
-    console.error('Error updating cart:', error);
-    alert('An error occurred. Please try again.');
-    incBtn.disabled = false;
-    decBtn.disabled = false;
+    console.error('Error removing item:', error);
+    alert('An error occurred while removing the item. Please try again.');
+    row.style.opacity = '1';
   });
 }
-*/
+
+/**
+ * Clear entire cart
+ */
+function clearCart() {
+  fetch('/clear-cart', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Reload page to show empty cart
+      window.location.reload();
+    } else {
+      alert('Failed to clear cart: ' + (data.message || 'Unknown error'));
+    }
+  })
+  .catch(error => {
+    console.error('Error clearing cart:', error);
+    alert('An error occurred while clearing the cart. Please try again.');
+  });
+}
 </script>
 {% endblock %}
