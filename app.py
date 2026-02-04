@@ -172,77 +172,139 @@ def add_to_cart():
         app.logger.error(f"Cart add error: {str(e)}")
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
-@app.route('/api/cart/update', methods=['POST'])
+
+# Add this to your Flask app.py or routes file
+
+from flask import Flask, request, jsonify, session
+
+@app.route('/update-cart', methods=['POST'])
 def update_cart():
+    """
+    Update cart item quantity
+    Expects JSON: {product_id: int, quantity: int, variant: dict (optional)}
+    Returns: {success: bool, subtotal: float, cart_count: int, message: str}
+    """
     try:
         data = request.get_json()
-        if not data or 'product_id' not in data or 'quantity' not in data:
-            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
-
-        product_id = int(data['product_id'])
-        new_quantity = int(data['quantity'])
-        variant = data.get('variant')  # Optional: used when adding new item
-
-        if new_quantity < 0:
-            return jsonify({'success': False, 'error': 'Invalid quantity value'}), 400
-
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'No data provided'
+            }), 400
+        
+        product_id = data.get('product_id')
+        quantity = data.get('quantity')
+        variant = data.get('variant')
+        
+        if product_id is None or quantity is None:
+            return jsonify({
+                'success': False,
+                'message': 'Missing product_id or quantity'
+            }), 400
+        
+        if quantity < 1:
+            return jsonify({
+                'success': False,
+                'message': 'Quantity must be at least 1'
+            }), 400
+        
+        # Get cart from session (adjust based on your cart storage method)
         cart = session.get('cart', [])
+        
+        # Find and update the item
         item_found = False
-
-        if new_quantity == 0:
-            original_length = len(cart)
-            cart = [
-                item for item in cart
-                if not (item['id'] == product_id and variants_match(item.get('variant'), variant))
-            ]
-            item_found = (len(cart) < original_length)
-        else:
-            for item in cart:
-                if item['id'] == product_id and variants_match(item.get('variant'), variant):
-                    item['quantity'] = new_quantity
-                    item_found = True
-                    break
-
-            if not item_found:
-                product = next((p for p in PRODUCTS if p['id'] == product_id), None)
-                if not product:
-                    return jsonify({'success': False, 'error': 'Product not found'}), 404
-                new_item = {
-                    'id': product_id,
-                    'name': product['name'],
-                    'price': product['price'],
-                    'quantity': new_quantity,
-                    'image': product['image']
-                }
-                if variant is not None:
-                    new_item['variant'] = variant
-                cart.append(new_item)
+        for item in cart:
+            # Match by product_id and variant (if applicable)
+            variant_match = True
+            if variant:
+                variant_match = (
+                    item.get('variant', {}).get('color') == variant.get('color') and
+                    item.get('variant', {}).get('size') == variant.get('size')
+                )
+            
+            if item['id'] == product_id and variant_match:
+                item['quantity'] = quantity
                 item_found = True
-
+                break
+        
+        if not item_found:
+            return jsonify({
+                'success': False,
+                'message': 'Item not found in cart'
+            }), 404
+        
+        # Update session
         session['cart'] = cart
         session.modified = True
-
-        cart_dict = {item['id']: item['quantity'] for item in cart}
-        distinct_count = len(cart)
+        
+        # Calculate new subtotal
         subtotal = sum(item['price'] * item['quantity'] for item in cart)
-        item_total = next(
-            (item['price'] * item['quantity'] for item in cart if item['id'] == product_id and variants_match(item.get('variant'), variant)),
-            0
-        ) if new_quantity > 0 else 0
-
+        
+        # Calculate total item count
+        cart_count = sum(item['quantity'] for item in cart)
+        
         return jsonify({
             'success': True,
-            'cart_count': distinct_count,
-            'cart_dict': cart_dict,
             'subtotal': subtotal,
-            'item_total': item_total,
-            'quantity': new_quantity if new_quantity > 0 else 0
+            'cart_count': cart_count,
+            'message': 'Cart updated successfully'
         })
-    except (ValueError, TypeError):
-        return jsonify({'success': False, 'error': 'Invalid data format'}), 400
+        
     except Exception as e:
-        app.logger.error(f"Cart update error: {str(e)}")
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        print(f"Error updating cart: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+
+# Optional: Add a remove from cart route
+@app.route('/remove-from-cart', methods=['POST'])
+def remove_from_cart():
+    """
+    Remove item from cart
+    Expects JSON: {product_id: int, variant: dict (optional)}
+    """
+    try:
+        data = request.get_json()
+        product_id = data.get('product_id')
+        variant = data.get('variant')
+        
+        cart = session.get('cart', [])
+        
+        # Filter out the item to remove
+        cart = [
+            item for item in cart
+            if not (
+                item['id'] == product_id and
+                (not variant or (
+                    item.get('variant', {}).get('color') == variant.get('color') and
+                    item.get('variant', {}).get('size') == variant.get('size')
+                ))
+            )
+        ]
+        
+        session['cart'] = cart
+        session.modified = True
+        
+        subtotal = sum(item['price'] * item['quantity'] for item in cart)
+        cart_count = sum(item['quantity'] for item in cart)
+        
+        return jsonify({
+            'success': True,
+            'subtotal': subtotal,
+            'cart_count': cart_count,
+            'message': 'Item removed from cart'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+
 
 @app.route('/api/cart/clear', methods=['POST'])
 def clear_cart():
