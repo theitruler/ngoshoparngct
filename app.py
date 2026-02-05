@@ -492,6 +492,7 @@ def submit_personal_detail():
 
     # ✅ Generate a unique order ID
     order_id = str(uuid.uuid4())
+    session['order_id'] = order_id  # ← STORE FOR LATER USE
 
     # Prepare webhook payload — INCLUDE VARIANT FOR EACH ITEM
     webhook_payload = {
@@ -577,14 +578,54 @@ def payment_success():
         if not data or 'razorpay_payment_id' not in data:
             app.logger.warning("Invalid payment success payload")
             return jsonify({'success': False}), 400
+
+        # Get order_id from session
+        order_id = session.get('order_id')
+        if not order_id:
+            app.logger.error("No order_id found in session during payment success")
+            return jsonify({'success': False, 'error': 'Missing order ID'}), 400
+
+        # ✅ Call the payment status webhook with order_id
+        webhook_url = 'http://n8n-x0owwcgwcg4s4o8w4g80g4go.93.127.185.52.sslip.io/webhook/paymentstatus'
+        try:
+            webhook_resp = requests.post(
+                webhook_url,
+                json={'order_id': order_id},
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
+            if webhook_resp.status_code not in (200, 201, 202, 204):
+                app.logger.warning(f"Payment status webhook failed ({webhook_resp.status_code}): {webhook_resp.text}")
+        except Exception as e:
+            app.logger.error(f"Failed to call payment status webhook: {str(e)}")
+
+        # ✅ SET FLAG TO ALLOW ACCESS TO /confirm
+        session['payment_successful'] = True
+
+        # Clean up other session data (but keep payment_successful for /confirm)
         session.pop('cart', None)
         session.pop('personal_details', None)
+        # DO NOT pop 'order_id' yet — /confirm might want to use it later (optional)
         session.modified = True
+
         return jsonify({'success': True}), 200
+
     except Exception as e:
         app.logger.error(f"Payment success handler error: {str(e)}")
         return jsonify({'success': False}), 500
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+@app.route('/confirm')
+def confirm():
+    # Only allow access if user just completed a successful payment
+    if not session.get('payment_successful'):
+        return render_template('error.html', message="Access denied. Payment confirmation required."), 403
+
+    # Clear the flag so they can't refresh/revisit
+    session.pop('payment_successful', None)
+    session.modified = True
+
+    return render_template('confirm.html')
 
 @app.route('/error')
 def error_page():
