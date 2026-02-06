@@ -7,7 +7,6 @@
         <i class="fas fa-times text-xl"></i>
       </button>
     </div>
-
     <div class="space-y-5">
       <!-- Product Preview -->
       <div class="flex items-center space-x-4">
@@ -18,8 +17,13 @@
         </div>
       </div>
 
-      <!-- Variant Selector -->
-      <div id="variant-selector-container">
+      <!-- Color Selector -->
+      <div id="color-selector-container">
+        <!-- Filled dynamically by JS -->
+      </div>
+
+      <!-- Size Selector -->
+      <div id="size-selector-container">
         <!-- Filled dynamically by JS -->
       </div>
 
@@ -56,57 +60,86 @@ document.addEventListener('DOMContentLoaded', () => {
   const qtyDec = document.getElementById('qty-dec');
   const qtyInc = document.getElementById('qty-inc');
   const addToCartBtn = document.getElementById('sidebar-add-to-cart');
-  const variantContainer = document.getElementById('variant-selector-container');
+  const colorContainer = document.getElementById('color-selector-container');
+  const sizeContainer = document.getElementById('size-selector-container');
 
   let currentProductId = null;
-  let selectedVariant = null;
+  let selectedColor = null;
+  let selectedSize = null;
   let quantity = 1;
 
   // Open sidebar from anywhere
   window.openVariantSidebar = (product) => {
     currentProductId = product.id;
-    document.getElementById('sidebar-product-name').textContent = product.name;
+    document.getElementById('sidebar-product-name').textContent = product.name.trim();
     document.getElementById('sidebar-product-price').textContent = '₹' + product.price;
-    document.getElementById('sidebar-product-img').src = product.image;
+    document.getElementById('sidebar-product-img').src = product.image.trim();
 
     // Reset state
     quantity = 1;
     qtyValue.textContent = '1';
     qtyDec.disabled = true;
-    selectedVariant = null;
+    selectedColor = null;
+    selectedSize = null;
 
-    // Render variants
-    if (product.variants && product.variants.length > 0) {
-      let html = `<label class="block text-gray-700 font-medium mb-2">Choose Variant</label><div class="grid grid-cols-1 gap-3">`;
-      product.variants.forEach((v, idx) => {
-        html += `
-          <label class="border rounded-lg p-3 cursor-pointer hover:bg-gray-50 flex items-center space-x-3 variant-option" data-variant='${JSON.stringify(v)}'>
-            <input type="radio" name="selected-variant" value="${idx}" class="sr-only peer" />
-            <span class="inline-block w-4 h-4 rounded-full border border-gray-300 peer-checked:border-indigo-600 peer-checked:bg-indigo-600 flex items-center justify-center">
-              <i class="fas fa-check text-white text-xs hidden peer-checked:block"></i>
-            </span>
-            <span>
-              <span class="font-medium">${v.color}</span>
-              ${v.size ? ` • ${v.size}` : ''}
-            </span>
-          </label>
+    // Render Colors
+    if (product.colors && product.colors.length > 0) {
+      let colorHtml = `<label class="block text-gray-700 font-medium mb-2">Color</label><div class="grid grid-cols-2 gap-2">`;
+      product.colors.forEach(color => {
+        const cleanColor = color.trim();
+        colorHtml += `
+          <button
+            type="button"
+            class="color-option border rounded-lg p-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center justify-center"
+            data-color="${cleanColor}"
+          >
+            ${cleanColor}
+          </button>
         `;
       });
-      html += `</div>`;
-      variantContainer.innerHTML = html;
-
-      // Attach event listeners to new options
-      document.querySelectorAll('.variant-option').forEach(opt => {
-        opt.addEventListener('click', () => {
-          selectedVariant = JSON.parse(opt.dataset.variant);
-          document.querySelectorAll('.variant-option input').forEach(inp => inp.checked = false);
-          opt.querySelector('input').checked = true;
-        });
-      });
+      colorHtml += `</div>`;
+      colorContainer.innerHTML = colorHtml;
     } else {
-      variantContainer.innerHTML = '<p class="text-gray-500">No variants available.</p>';
-      selectedVariant = null;
+      colorContainer.innerHTML = '';
     }
+
+    // Render Sizes
+    if (product.sizes && product.sizes.length > 0) {
+      let sizeHtml = `<label class="block text-gray-700 font-medium mb-2">Size</label><div class="grid grid-cols-2 gap-2">`;
+      product.sizes.forEach(size => {
+        const cleanSize = size.trim();
+        sizeHtml += `
+          <button
+            type="button"
+            class="size-option border rounded-lg p-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center justify-center"
+            data-size="${cleanSize}"
+          >
+            ${cleanSize}
+          </button>
+        `;
+      });
+      sizeHtml += `</div>`;
+      sizeContainer.innerHTML = sizeHtml;
+    } else {
+      sizeContainer.innerHTML = '';
+    }
+
+    // Attach event listeners
+    document.querySelectorAll('.color-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.color-option').forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-600'));
+        btn.classList.add('bg-indigo-100', 'border-indigo-600');
+        selectedColor = btn.dataset.color;
+      });
+    });
+
+    document.querySelectorAll('.size-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.size-option').forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-600'));
+        btn.classList.add('bg-indigo-100', 'border-indigo-600');
+        selectedSize = btn.dataset.size;
+      });
+    });
 
     // Show sidebar
     sidebar.classList.remove('translate-x-full');
@@ -129,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
     qtyValue.textContent = quantity;
     qtyDec.disabled = false;
   });
-
   qtyDec.addEventListener('click', () => {
     if (quantity > 1) {
       quantity--;
@@ -139,15 +171,37 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Add to cart
-addToCartBtn.addEventListener('click', async () => {
-if (!currentProductId) return;
-try {
-await window.globalCart.addToCart(currentProductId, quantity, selectedVariant);
-closeSidebar();
-} catch (err) {
-console.error(err);
-alert('Failed to add item. Please try again.');
-}
-});
+  addToCartBtn.addEventListener('click', async () => {
+    if (!currentProductId) return;
+
+    // Validate selections if variants exist
+    const hasColors = document.querySelectorAll('.color-option').length > 0;
+    const hasSizes = document.querySelectorAll('.size-option').length > 0;
+
+    if (hasColors && !selectedColor) {
+      alert('Please select a color.');
+      return;
+    }
+    if (hasSizes && !selectedSize) {
+      alert('Please select a size.');
+      return;
+    }
+
+    // Build variant object only if needed
+    let variant = null;
+    if (selectedColor || selectedSize) {
+      variant = {};
+      if (selectedColor) variant.color = selectedColor;
+      if (selectedSize) variant.size = selectedSize;
+    }
+
+    try {
+      await window.globalCart.addToCart(currentProductId, quantity, variant);
+      closeSidebar();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to add item. Please try again.');
+    }
+  });
 });
 </script>

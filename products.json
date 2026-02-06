@@ -5,10 +5,8 @@
     "price": 2499,
     "image": "https://via.placeholder.com/150/92c952?text=Earbuds",
     "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof",
-    "variants": [
-      { "color": "Black", "size": "Standard", "sku": "EARBUDS-BLK-STD" },
-      { "color": "White", "size": "Standard", "sku": "EARBUDS-WHT-STD" }
-    ],
+    "colors": ["Black", "White"],
+    "sizes": ["Standard"],
     "tags": ["electronics"]
   },
   {
@@ -17,10 +15,8 @@
     "price": 4999,
     "image": "https://via.placeholder.com/150/771796?text=Watch",
     "description": "Heart rate monitor, GPS, 7-day battery",
-    "variants": [
-      { "color": "Silver", "size": "42mm", "sku": "WATCH-SLV-42" },
-      { "color": "Black", "size": "46mm", "sku": "WATCH-BLK-46" }
-    ],
+    "colors": ["Silver", "Black"],
+    "sizes": ["42mm", "46mm"],
     "tags": ["electronics"]
   },
   {
@@ -29,10 +25,8 @@
     "price": 899,
     "image": "https://via.placeholder.com/150/d32776?text=Sleeve",
     "description": "Water-resistant, fits 15-inch laptops",
-    "variants": [
-      { "color": "Navy", "size": "13-inch", "sku": "SLEEVE-NVY-13" },
-      { "color": "Gray", "size": "15-inch", "sku": "SLEEVE-GRY-15" }
-    ],
+    "colors": ["Navy", "Gray"],
+    "sizes": ["13-inch", "15-inch"],
     "tags": ["accessory"]
   },
   {
@@ -41,10 +35,8 @@
     "price": 399,
     "image": "https://via.placeholder.com/150/f6d674?text=Notebook",
     "description": "Hardcover, 120 pages, recycled paper",
-    "variants": [
-      { "color": "Red", "size": "A5", "sku": "NOTE-RD-A5" },
-      { "color": "Green", "size": "A4", "sku": "NOTE-GN-A4" }
-    ],
+    "colors": ["Red", "Green"],
+    "sizes": ["A5", "A4"],
     "tags": ["stationery"]
   },
   {
@@ -53,10 +45,8 @@
     "price": 1499,
     "image": "https://via.placeholder.com/150/aaaaaa?text=Hoodie",
     "description": "Soft fleece hoodie with front pocket and drawstring hood",
-    "variants": [
-      { "color": "Black", "size": "M", "sku": "HD-BLK-M" },
-      { "color": "Gray", "size": "L", "sku": "HD-GRY-L" }
-    ],
+    "colors": ["Black", "Gray"],
+    "sizes": ["S","M", "L","XL","XXL"],
     "tags": ["hoodie"]
   },
   {
@@ -65,10 +55,8 @@
     "price": 1,
     "image": "https://via.placeholder.com/150/bbbbbb?text=Cap",
     "description": "Breathable cotton cap with adjustable strap and embroidered logo",
-    "variants": [
-      { "color": "Navy", "size": "One Size", "sku": "CAP-NVY-OS" },
-      { "color": "Black", "size": "One Size", "sku": "CAP-BLK-OS" }
-    ],
+    "colors": ["Navy", "Black"],
+    "sizes": ["One Size"],
     "tags": ["cap"]
   }
 ]
