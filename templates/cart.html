@@ -1,20 +1,152 @@
 {% extends "base.html" %}
 {% block title %}Cart{% endblock %}
 {% block content %}
-<div class="max-w-4xl mx-auto">
+<style>
+/* Mobile-friendly responsive styles */
+@media (max-width: 768px) {
+  /* Hide desktop table headers on mobile */
+  .cart-table thead {
+    display: none;
+  }
+  
+  /* Stack table rows as cards on mobile */
+  .cart-table tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background: white;
+  }
+  
+  /* Reset table cell display */
+  .cart-table tbody td {
+    display: block;
+    padding: 0.5rem 0 !important;
+    border: none;
+    text-align: left !important;
+  }
+  
+  /* Product info styling */
+  .cart-table tbody td:first-child {
+    padding-bottom: 1rem !important;
+    border-bottom: 1px solid #f3f4f6;
+    margin-bottom: 0.75rem;
+  }
+  
+  /* Add labels before each data cell */
+  .cart-table tbody td:nth-child(2)::before {
+    content: 'Price: ';
+    font-weight: 600;
+    color: #4b5563;
+  }
+  
+  .cart-table tbody td:nth-child(3)::before {
+    content: 'Quantity: ';
+    font-weight: 600;
+    color: #4b5563;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  
+  .cart-table tbody td:nth-child(4)::before {
+    content: 'Total: ';
+    font-weight: 600;
+    color: #4b5563;
+  }
+  
+  /* Action button styling */
+  .cart-table tbody td:last-child {
+    padding-top: 1rem !important;
+    border-top: 1px solid #f3f4f6;
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+  
+  /* Remove the "Action:" label for the last column */
+  .cart-table tbody td:last-child::before {
+    display: none;
+  }
+  
+  /* Adjust product image size on mobile */
+  .cart-table tbody td img {
+    width: 4rem;
+    height: 4rem;
+  }
+  
+  /* Adjust quantity controls on mobile */
+  .cart-table tbody td .flex.items-center.border {
+    width: 100%;
+    max-width: 9rem;
+  }
+  
+  /* Make buttons stack on mobile */
+  .mobile-stack-buttons {
+    flex-direction: column;
+  }
+  
+  .mobile-stack-buttons > * {
+    width: 100%;
+  }
+}
+
+/* Tablet and larger screens */
+@media (min-width: 769px) {
+  .cart-table {
+    display: table;
+    width: 100%;
+  }
+  
+  .cart-table thead,
+  .cart-table tbody,
+  .cart-table tr,
+  .cart-table td,
+  .cart-table th {
+    display: table-cell;
+  }
+}
+
+/* Additional mobile optimizations */
+@media (max-width: 640px) {
+  /* Reduce heading size */
+  .page-heading {
+    font-size: 1.5rem;
+  }
+  
+  /* Adjust modal padding */
+  #confirmation-modal .bg-white {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  /* Reduce modal icon size */
+  #confirmation-modal .w-12 {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  
+  /* Smaller font for empty cart message */
+  .empty-cart-icon {
+    font-size: 3rem;
+  }
+}
+</style>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-900">Your Shopping Cart</h1>
+    <h1 class="text-2xl font-bold text-gray-900 page-heading">Your Shopping Cart</h1>
     {% if cart_items %}
       <button id="clear-cart-btn" class="text-red-600 hover:text-red-700 font-medium text-sm flex items-center gap-2 transition">
         <i class="fas fa-trash-alt"></i>
-        Clear Cart
+        <span class="hidden sm:inline">Clear Cart</span>
       </button>
     {% endif %}
   </div>
 
   {% if cart_items %}
     <div class="bg-white rounded-xl shadow overflow-hidden">
-      <table class="w-full">
+      <table class="w-full cart-table">
         <thead class="bg-gray-50 text-left">
           <tr>
             <th class="p-4">Product</th>
@@ -71,7 +203,7 @@
         </div>
         <p class="text-gray-600 text-sm mt-1">Shipping & taxes calculated at checkout</p>
 
-        <div class="mt-6 flex flex-col sm:flex-row gap-4">
+        <div class="mt-6 flex flex-col sm:flex-row gap-4 mobile-stack-buttons">
           <a href="{{ url_for('products') }}" class="flex-1 text-center py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition">
             ← Continue Shopping
           </a>
@@ -83,7 +215,7 @@
     </div>
   {% else %}
     <div class="text-center py-12 bg-white rounded-xl shadow">
-      <i class="fas fa-shopping-cart text-5xl text-gray-300 mb-4"></i>
+      <i class="fas fa-shopping-cart text-5xl text-gray-300 mb-4 empty-cart-icon"></i>
       <h2 class="text-xl font-bold text-gray-900">Your cart is empty</h2>
       <p class="text-gray-600 mt-2">Looks like you haven't added anything yet.</p>
       <a href="{{ url_for('products') }}" class="mt-4 inline-block bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition">
