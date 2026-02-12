@@ -524,7 +524,7 @@ def submit_personal_detail():
     }
 
     # Send to webhook
-    webhook_url = 'http://n8n-x0owwcgwcg4s4o8w4g80g4go.93.127.185.52.sslip.io/webhook/demo'
+    webhook_url = 'https://n8n.arngct.org/webhook/demo'
     if webhook_url:
         try:
             response = requests.post(
@@ -586,7 +586,7 @@ def payment_success():
             return jsonify({'success': False, 'error': 'Missing order ID'}), 400
 
         # ✅ Call the payment status webhook with order_id
-        webhook_url = 'http://n8n-x0owwcgwcg4s4o8w4g80g4go.93.127.185.52.sslip.io/webhook/paymentstatus'
+        webhook_url = 'https://n8n.arngct.org/webhook/paymentstatus'
         try:
             webhook_resp = requests.post(
                 webhook_url,
