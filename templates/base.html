@@ -52,26 +52,42 @@ crossorigin="anonymous" referrerpolicy="no-referrer">
 <span id="toast-message">Item added to cart!</span>
 </div>
 <!-- Navbar -->
+<!-- Navbar -->
 <nav class="bg-white shadow-sm">
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<div class="flex justify-between h-16 items-center">
-<a href="{{ url_for('products') }}" class="text-2xl font-bold text-primary flex items-center">
-<i class="fas fa-shopping-bag mr-2"></i>A. R. N Merch
-</a>
-<div class="flex items-center space-x-6">
-<a href="{{ url_for('products') }}" class="text-gray-700 hover:text-primary font-medium hidden md:block transition">Products</a>
-<a href="{{ url_for('cart') }}" class="relative group p-1" id="cart-link" aria-label="Shopping cart">
-<i class="fas fa-shopping-cart text-xl text-gray-700 hover:text-primary transition"></i>
-{% set distinct_count = session.cart|length if session.cart else 0 %}
-{% if distinct_count > 0 %}
-<span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white rounded-full flex items-center justify-center animate-cart-pulse" id="cart-badge" aria-label="{{ distinct_count }} items in cart">
-{{ distinct_count }}
-</span>
-{% endif %}
-</a>
-</div>
-</div>
-</div>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between h-16 items-center">
+      
+      <!-- LOGO SECTION START -->
+      <a href="{{ url_for('products') }}" class="flex items-center group">
+        <!-- 
+           Replace 'images/logo.png' with your actual file path inside the static folder.
+           Example: If your file is static/logo.png, use 'logo.png'.
+           If it is static/images/logo.png, use 'images/logo.png'.
+        -->
+        <img 
+          src="{{ url_for('static', filename='images/logo.png') }}" 
+          alt="A. R. N Merch Logo" 
+          class="h-10 w-auto object-contain mr-3 transition-transform group-hover:scale-105"
+        >
+        <!-- Optional: Keep text if you want both image and text, or remove the span below to show only image -->
+        <span class="text-xl font-bold text-primary hidden sm:block">A. R. N Merch</span>
+      </a>
+      <!-- LOGO SECTION END -->
+
+      <div class="flex items-center space-x-6">
+        <a href="{{ url_for('products') }}" class="text-gray-700 hover:text-primary font-medium hidden md:block transition">Products</a>
+        <a href="{{ url_for('cart') }}" class="relative group p-1" id="cart-link" aria-label="Shopping cart">
+          <i class="fas fa-shopping-cart text-xl text-gray-700 hover:text-primary transition"></i>
+          {% set distinct_count = session.cart|length if session.cart else 0 %}
+          {% if distinct_count > 0 %}
+          <span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white rounded-full flex items-center justify-center animate-cart-pulse" id="cart-badge" aria-label="{{ distinct_count }} items in cart">
+            {{ distinct_count }}
+          </span>
+          {% endif %}
+        </a>
+      </div>
+    </div>
+  </div>
 </nav>
 <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 {% block content %}{% endblock %}

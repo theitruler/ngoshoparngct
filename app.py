@@ -119,46 +119,60 @@ def add_to_cart():
         data = request.get_json()
         if not data or 'product_id' not in data:
             return jsonify({'success': False, 'error': 'Invalid request payload'}), 400
-
+        
         product_id = int(data['product_id'])
         quantity = int(data.get('quantity', 1))
         variant = data.get('variant')  # May be dict or None
-
+        
         if quantity < 1:
             return jsonify({'success': False, 'error': 'Quantity must be at least 1'}), 400
-
+        
         product = next((p for p in PRODUCTS if p['id'] == product_id), None)
         if not product:
             return jsonify({'success': False, 'error': 'Product not found in catalog'}), 404
-
+        
         cart = session.get('cart', [])
-
+        
         # Check if same product + same variant already exists
         existing_item = None
         for item in cart:
             if item['id'] == product_id and variants_match(item.get('variant'), variant):
                 existing_item = item
                 break
-
+        
         if existing_item:
             existing_item['quantity'] += quantity
         else:
+            # --- FIX STARTS HERE ---
+            # Determine the image URL safely
+            product_image_url = ""
+            if 'images' in product and isinstance(product['images'], list) and len(product['images']) > 0:
+                product_image_url = product['images'][0]  # Use first image from array
+            elif 'image' in product:
+                product_image_url = product['image']      # Fallback to old single image key
+            else:
+                product_image_url = '/static/placeholder.png' # Fallback if nothing exists
+            
             new_item = {
                 'id': product_id,
                 'name': product['name'],
                 'price': product['price'],
                 'quantity': quantity,
-                'image': product['image']
+                'image': product_image_url  # Save the resolved URL as 'image' in cart
             }
+            # --- FIX ENDS HERE ---
+
             if variant is not None:
                 new_item['variant'] = variant
+            
             cart.append(new_item)
-
+        
         session['cart'] = cart
         session.modified = True
-
+        
         cart_dict = {item['id']: item['quantity'] for item in cart}
         distinct_count = len(cart)
+        
         return jsonify({
             'success': True,
             'cart_count': distinct_count,
@@ -166,14 +180,12 @@ def add_to_cart():
             'message': f"{product['name']} added to cart!",
             'quantity': next(item['quantity'] for item in cart if item['id'] == product_id and variants_match(item.get('variant'), variant))
         })
+        
     except (ValueError, TypeError):
         return jsonify({'success': False, 'error': 'Invalid data format'}), 400
     except Exception as e:
         app.logger.error(f"Cart add error: {str(e)}")
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
-
-
-# Add this to your Flask app.py or routes file
 
 from flask import Flask, request, jsonify, session
 

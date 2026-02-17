@@ -7,38 +7,68 @@
     🌟 Every purchase you make directly supports welfare initiatives through our NGO. Thank you for making a difference!
   </p>
 </div>
+
 <div class="mb-8 text-center">
   <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Shop Our Collection</h1>
   <p class="text-gray-600 mt-2 max-w-2xl mx-auto">Discover high-quality products designed for everyday use</p>
 </div>
+
 <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-{% for product in products %}
+  {% for product in products %}
   <div
-    class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border border-gray-100"
+    class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border border-gray-100 flex flex-col"
     data-product-id="{{ product.id }}"
   >
-    <div class="h-48 flex items-center justify-center bg-gray-50 p-4">
+    <!-- Image Area -->
+    <div class="h-48 flex items-center justify-center bg-gray-50 p-4 relative z-0">
       <img
-        src="{{ product.image }}"
+        src="{{ product.images[0] if product.images else product.image }}"
         alt="{{ product.name }}"
         class="max-h-40 max-w-full object-contain transition-transform hover:scale-105"
       >
     </div>
-    <div class="p-4 md:p-5">
+    
+    <!-- Content Area -->
+    <div class="p-4 md:p-5 flex flex-col flex-grow">
       <h2 class="text-lg md:text-xl font-bold text-gray-900 mb-1 line-clamp-1">{{ product.name }}</h2>
-      <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ product.description }}</p>
-      <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+      <p class="text-gray-600 text-sm mb-3 line-clamp-2 flex-grow">{{ product.description }}</p>
+      
+      <div class="flex justify-between items-center pt-3 border-t border-gray-100 mt-auto">
         <span class="text-xl font-bold text-primary">₹{{ product.price }}</span>
-        <!-- NEW: Trigger sidebar -->
+        
+        <!-- FIX: Use data attribute for JSON and a simple JS call -->
         <button
-          class="bg-primary hover:bg-indigo-700 text-white py-1.5 px-4 rounded-lg text-sm transition"
-          onclick='openVariantSidebar({{ product | tojson }})'
+          type="button"
+          class="add-btn bg-primary hover:bg-indigo-700 text-white py-1.5 px-4 rounded-lg text-sm transition z-10 relative shadow-sm"
+          data-product-json='{{ product | tojson | safe }}'
+          onclick="openVariantSidebarFromBtn(this)"
         >
           <i class="fas fa-cart-plus mr-1"></i> Add
         </button>
       </div>
     </div>
   </div>
-{% endfor %}
+  {% endfor %}
 </div>
+
+<script>
+// Helper function to safely read data attribute and open sidebar
+function openVariantSidebarFromBtn(btn) {
+  // Stop event bubbling so the card click doesn't trigger
+  event.stopPropagation();
+  
+  try {
+    const productData = JSON.parse(btn.getAttribute('data-product-json'));
+    if (window.openVariantSidebar) {
+      window.openVariantSidebar(productData);
+    } else {
+      console.error('Sidebar function not loaded yet');
+      alert('Please wait a moment and try again.');
+    }
+  } catch (e) {
+    console.error('Error parsing product data:', e);
+    alert('Error loading product details.');
+  }
+}
+</script>
 {% endblock %}

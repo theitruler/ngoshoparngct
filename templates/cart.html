@@ -7,381 +7,372 @@ IMPROVED CART STYLES - DESKTOP & MOBILE
 ==================================== */
 /* Base cart table styles */
 .cart-table {
-  width: 100%;
-  background: white;
+width: 100%;
+background: white;
 }
 .cart-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+color: white;
 }
 .cart-table thead th {
-  padding: 1rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+padding: 1rem;
+font-weight: 600;
+font-size: 0.875rem;
+text-transform: uppercase;
+letter-spacing: 0.05em;
 }
 .cart-table tbody tr {
-  border-bottom: 1px solid #e5e7eb;
-  transition: background-color 0.2s;
+border-bottom: 1px solid #e5e7eb;
+transition: background-color 0.2s;
 }
 .cart-table tbody tr:hover {
-  background-color: #f9fafb;
+background-color: #f9fafb;
 }
 .cart-table tbody td {
-  padding: 1.25rem 1rem;
-  vertical-align: middle;
+padding: 1.25rem 1rem;
+vertical-align: middle;
 }
 /* Product cell styling */
 .product-cell {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+display: flex;
+align-items: center;
+gap: 1rem;
 }
 .product-image {
-  width: 5rem;
-  height: 5rem;
-  object-fit: contain;
-  border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
-  padding: 0.25rem;
-  background: white;
+width: 5rem;
+height: 5rem;
+object-fit: contain;
+border-radius: 0.5rem;
+border: 1px solid #e5e7eb;
+padding: 0.25rem;
+background: white;
 }
 .product-info {
-  flex: 1;
+flex: 1;
 }
 .product-name {
-  font-weight: 600;
-  color: #111827;
-  font-size: 1rem;
-  margin-bottom: 0.25rem;
+font-weight: 600;
+color: #111827;
+font-size: 1rem;
+margin-bottom: 0.25rem;
 }
 .product-variant {
-  font-size: 0.875rem;
-  color: #6b7280;
+font-size: 0.875rem;
+color: #6b7280;
 }
 /* Price styling */
 .price-cell {
-  font-weight: 600;
-  color: #374151;
-  font-size: 1rem;
+font-weight: 600;
+color: #374151;
+font-size: 1rem;
 }
 /* Quantity controls */
 .quantity-controls {
-  display: inline-flex;
-  align-items: center;
-  border: 2px solid #e5e7eb;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  background: white;
+display: inline-flex;
+align-items: center;
+border: 2px solid #e5e7eb;
+border-radius: 0.5rem;
+overflow: hidden;
+background: white;
 }
 .quantity-controls button {
-  padding: 0.5rem 0.75rem;
-  background: white;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: #6b7280;
+padding: 0.5rem 0.75rem;
+background: white;
+border: none;
+cursor: pointer;
+transition: all 0.2s;
+color: #6b7280;
 }
 .quantity-controls button:hover:not(:disabled) {
-  background: #f3f4f6;
-  color: #4f46e5;
+background: #f3f4f6;
+color: #4f46e5;
 }
 .quantity-controls button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+opacity: 0.4;
+cursor: not-allowed;
 }
 .quantity-controls .qty-display {
-  padding: 0.5rem 1rem;
-  border-left: 1px solid #e5e7eb;
-  border-right: 1px solid #e5e7eb;
-  font-weight: 600;
-  min-width: 3rem;
-  text-align: center;
-  color: #111827;
+padding: 0.5rem 1rem;
+border-left: 1px solid #e5e7eb;
+border-right: 1px solid #e5e7eb;
+font-weight: 600;
+min-width: 3rem;
+text-align: center;
+color: #111827;
 }
 /* Total cell */
 .total-cell {
-  font-weight: 700;
-  color: #111827;
-  font-size: 1.125rem;
+font-weight: 700;
+color: #111827;
+font-size: 1.125rem;
 }
 /* Delete button */
 .delete-btn {
-  padding: 0.5rem 0.75rem;
-  color: #dc2626;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s;
+padding: 0.5rem 0.75rem;
+color: #dc2626;
+background: #fef2f2;
+border: 1px solid #fecaca;
+border-radius: 0.5rem;
+cursor: pointer;
+transition: all 0.2s;
 }
 .delete-btn:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  transform: scale(1.05);
+background: #fee2e2;
+border-color: #fca5a5;
+transform: scale(1.05);
 }
 /* Summary section */
 .cart-summary {
-  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
-  border-top: 2px solid #e5e7eb;
-  padding: 1.5rem;
+background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+border-top: 2px solid #e5e7eb;
+padding: 1.5rem;
 }
 .summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
+display: flex;
+justify-content: space-between;
+align-items: center;
+font-size: 1.25rem;
+font-weight: 700;
+color: #111827;
 }
 .summary-note {
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
+color: #6b7280;
+font-size: 0.875rem;
+margin-top: 0.5rem;
 }
 /* Action buttons */
 .action-buttons {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
+display: flex;
+gap: 1rem;
+margin-top: 1.5rem;
 }
 .btn-secondary {
-  flex: 1;
-  padding: 0.875rem 1.5rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  color: #374151;
-  background: white;
-  text-align: center;
-  transition: all 0.2s;
-  text-decoration: none;
+flex: 1;
+padding: 0.875rem 1.5rem;
+border: 2px solid #e5e7eb;
+border-radius: 0.75rem;
+font-weight: 600;
+color: #374151;
+background: white;
+text-align: center;
+transition: all 0.2s;
+text-decoration: none;
 }
 .btn-secondary:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-  transform: translateY(-1px);
+background: #f9fafb;
+border-color: #d1d5db;
+transform: translateY(-1px);
 }
 .btn-primary {
-  flex: 1;
-  padding: 0.875rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  text-align: center;
-  transition: all 0.2s;
-  text-decoration: none;
-  box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.3);
+flex: 1;
+padding: 0.875rem 1.5rem;
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+color: white;
+border: none;
+border-radius: 0.75rem;
+font-weight: 600;
+text-align: center;
+transition: all 0.2s;
+text-decoration: none;
+box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.3);
 }
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px -1px rgba(102, 126, 234, 0.4);
+transform: translateY(-2px);
+box-shadow: 0 6px 12px -1px rgba(102, 126, 234, 0.4);
 }
 /* Page header */
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 1.5rem;
 }
 .page-title {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: #111827;
+font-size: 1.875rem;
+font-weight: 700;
+color: #111827;
 }
 .clear-cart-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  color: #dc2626;
-  background: white;
-  border: 1px solid #fecaca;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
+display: flex;
+align-items: center;
+gap: 0.5rem;
+padding: 0.5rem 1rem;
+color: #dc2626;
+background: white;
+border: 1px solid #fecaca;
+border-radius: 0.5rem;
+font-weight: 600;
+font-size: 0.875rem;
+cursor: pointer;
+transition: all 0.2s;
 }
 .clear-cart-btn:hover {
-  background: #fef2f2;
-  transform: scale(1.05);
+background: #fef2f2;
+transform: scale(1.05);
 }
 /* Empty cart state */
 .empty-cart {
-  text-align: center;
-  padding: 4rem 2rem;
-  background: white;
-  border-radius: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+text-align: center;
+padding: 4rem 2rem;
+background: white;
+border-radius: 1rem;
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 .empty-cart-icon {
-  font-size: 4rem;
-  color: #d1d5db;
-  margin-bottom: 1.5rem;
+font-size: 4rem;
+color: #d1d5db;
+margin-bottom: 1.5rem;
 }
 .empty-cart h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 0.5rem;
+font-size: 1.5rem;
+font-weight: 700;
+color: #111827;
+margin-bottom: 0.5rem;
 }
 .empty-cart p {
-  color: #6b7280;
-  margin-bottom: 1.5rem;
+color: #6b7280;
+margin-bottom: 1.5rem;
 }
-
 /* ====================================
 MOBILE RESPONSIVE STYLES
 ==================================== */
 @media (max-width: 768px) {
-  /* Hide desktop table headers */
-  .cart-table thead {
-    display: none;
-  }
-  /* Stack table rows as cards */
-  .cart-table tbody tr {
-    display: block;
-    margin-bottom: 1rem;
-    border: 2px solid #e5e7eb;
-    border-radius: 1rem;
-    padding: 1rem;
-    background: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-  .cart-table tbody tr:hover {
-    background: white;
-  }
-  /* Reset table cell display */
-  .cart-table tbody td {
-    display: block;
-    padding: 0.5rem 0 !important;
-    border: none;
-    text-align: left !important;
-  }
-  /* Product cell - full width */
-  .product-cell {
-    padding-bottom: 1rem !important;
-    border-bottom: 1px solid #f3f4f6;
-    margin-bottom: 0.75rem;
-  }
-  .product-image {
-    width: 4rem;
-    height: 4rem;
-  }
-  /* Add labels before data cells */
-  .cart-table tbody td:nth-child(2)::before {
-    content: 'Price: ';
-    font-weight: 600;
-    color: #6b7280;
-    font-size: 0.875rem;
-  }
-  .cart-table tbody td:nth-child(3) {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .cart-table tbody td:nth-child(3)::before {
-    content: 'Quantity:';
-    font-weight: 600;
-    color: #6b7280;
-    font-size: 0.875rem;
-  }
-  .cart-table tbody td:nth-child(4)::before {
-    content: 'Total: ';
-    font-weight: 600;
-    color: #6b7280;
-    font-size: 0.875rem;
-  }
-  /* Action button - align right */
-  .cart-table tbody td:last-child {
-    padding-top: 1rem !important;
-    border-top: 1px solid #f3f4f6;
-    margin-top: 0.75rem;
-    display: flex;
-    justify-content: flex-end;
-  }
-  .quantity-controls {
-    width: 100%;
-    max-width: 10rem;
-  }
-  /* Stack action buttons vertically */
-  .action-buttons {
-    flex-direction: column;
-  }
-  /* Page header adjustments */
-  .page-title {
-    font-size: 1.5rem;
-  }
-  .clear-cart-btn span {
-    display: none;
-  }
-
-  /* === IMPROVED CART SUMMARY FOR MOBILE === */
-  .cart-summary {
-    padding: 1.5rem 1rem;
-    border-top: 2px solid #e5e7eb;
-    background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
-  }
-
-  .summary-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
-    font-size: 1.25rem;
-  }
-
-  .summary-row span:first-child {
-    color: #6b7280;
-    font-weight: 600;
-  }
-
-  .summary-row span:last-child {
-    color: #111827;
-    font-weight: 700;
-    font-size: 1.375rem;
-  }
-
-  .summary-note {
-    margin-top: 0.75rem;
-    margin-bottom: 1.25rem;
-    font-size: 0.875rem;
-    color: #6b7280;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .btn-secondary,
-  .btn-primary {
-    width: 100%;
-    text-align: center;
-    padding: 1rem;
-    font-size: 1rem;
-  }
+/* Hide desktop table headers */
+.cart-table thead {
+display: none;
 }
-
+/* Stack table rows as cards */
+.cart-table tbody tr {
+display: block;
+margin-bottom: 1rem;
+border: 2px solid #e5e7eb;
+border-radius: 1rem;
+padding: 1rem;
+background: white;
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.cart-table tbody tr:hover {
+background: white;
+}
+/* Reset table cell display */
+.cart-table tbody td {
+display: block;
+padding: 0.5rem 0 !important;
+border: none;
+text-align: left !important;
+}
+/* Product cell - full width */
+.product-cell {
+padding-bottom: 1rem !important;
+border-bottom: 1px solid #f3f4f6;
+margin-bottom: 0.75rem;
+}
+.product-image {
+width: 4rem;
+height: 4rem;
+}
+/* Add labels before data cells */
+.cart-table tbody td:nth-child(2)::before {
+content: 'Price: ';
+font-weight: 600;
+color: #6b7280;
+font-size: 0.875rem;
+}
+.cart-table tbody td:nth-child(3) {
+display: flex;
+flex-direction: column;
+gap: 0.5rem;
+}
+.cart-table tbody td:nth-child(3)::before {
+content: 'Quantity:';
+font-weight: 600;
+color: #6b7280;
+font-size: 0.875rem;
+}
+.cart-table tbody td:nth-child(4)::before {
+content: 'Total: ';
+font-weight: 600;
+color: #6b7280;
+font-size: 0.875rem;
+}
+/* Action button - align right */
+.cart-table tbody td:last-child {
+padding-top: 1rem !important;
+border-top: 1px solid #f3f4f6;
+margin-top: 0.75rem;
+display: flex;
+justify-content: flex-end;
+}
+.quantity-controls {
+width: 100%;
+max-width: 10rem;
+}
+/* Stack action buttons vertically */
+.action-buttons {
+flex-direction: column;
+}
+/* Page header adjustments */
+.page-title {
+font-size: 1.5rem;
+}
+.clear-cart-btn span {
+display: none;
+}
+/* === IMPROVED CART SUMMARY FOR MOBILE === */
+.cart-summary {
+padding: 1.5rem 1rem;
+border-top: 2px solid #e5e7eb;
+background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+}
+.summary-row {
+flex-direction: column;
+align-items: flex-start;
+gap: 0.25rem;
+font-size: 1.25rem;
+}
+.summary-row span:first-child {
+color: #6b7280;
+font-weight: 600;
+}
+.summary-row span:last-child {
+color: #111827;
+font-weight: 700;
+font-size: 1.375rem;
+}
+.summary-note {
+margin-top: 0.75rem;
+margin-bottom: 1.25rem;
+font-size: 0.875rem;
+color: #6b7280;
+}
+.action-buttons {
+flex-direction: column;
+gap: 0.75rem;
+}
+.btn-secondary,
+.btn-primary {
+width: 100%;
+text-align: center;
+padding: 1rem;
+font-size: 1rem;
+}
+}
 /* Tablet adjustments */
 @media (min-width: 769px) and (max-width: 1024px) {
-  .cart-table thead th {
-    padding: 0.875rem;
-    font-size: 0.8125rem;
-  }
-  .cart-table tbody td {
-    padding: 1rem 0.75rem;
-  }
-  .product-image {
-    width: 4rem;
-    height: 4rem;
-  }
-  .product-name {
-    font-size: 0.9375rem;
-  }
+.cart-table thead th {
+padding: 0.875rem;
+font-size: 0.8125rem;
+}
+.cart-table tbody td {
+padding: 1rem 0.75rem;
+}
+.product-image {
+width: 4rem;
+height: 4rem;
+}
+.product-name {
+font-size: 0.9375rem;
+}
 }
 </style>
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -411,7 +402,12 @@ MOBILE RESPONSIVE STYLES
 <tr data-product-id="{{ item.id }}" data-variant="{{ item.variant|tojson if item.variant else 'null' }}">
 <td>
 <div class="product-cell">
-<img src="{{ item.image }}" alt="{{ item.name }}" class="product-image">
+<!-- FIX: Check for 'images' array first, fallback to 'image' -->
+<img 
+  src="{{ item.images[0] if item.images else item.image }}" 
+  alt="{{ item.name }}" 
+  class="product-image"
+>
 <div class="product-info">
 <div class="product-name">{{ item.name }}</div>
 {% if item.variant %}
@@ -448,7 +444,7 @@ MOBILE RESPONSIVE STYLES
 <div class="summary-row">
 <span>Subtotal:</span>
 <span id="subtotal-amount">₹{{ "%.2f"|format(subtotal) }}</span>
-</p>
+</div>
 <p class="summary-note">Shipping & taxes calculated at checkout</p>
 <div class="action-buttons">
 <a href="{{ url_for('products') }}" class="btn-secondary">

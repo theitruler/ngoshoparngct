@@ -1,72 +1,28 @@
 [
   {
     "id": 1,
-    "name": "Wireless Earbuds",
-    "price": 2499,
-    "image": "https://imgoo.in/images/2026/02/08/Leisure.png",
-    "description": "Bluetooth 5.3, 30hr battery, IPX7 waterproof",
-    "colors": ["Black", "White"],
-    "sizes": ["Standard"],
-    "tags": ["electronics"]
-  },
-  {
-    "id": 2,
-    "name": "Smart Watch",
-    "price": 4999,
-    "image": "https://i.ibb.co/1tN5L33T/Untitled-Project.png",
-    "description": "Heart rate monitor, GPS, 7-day battery",
-    "colors": ["Silver", "Black"],
-    "sizes": ["42mm", "46mm"],
-    "tags": ["electronics"]
-  },
-  {
-    "id": 3,
-    "name": "Laptop Sleeve",
-    "price": 899,
-    "image": "https://via.placeholder.com/150/d32776?text=Sleeve",
-    "description": "Water-resistant, fits 15-inch laptops",
-    "colors": ["Navy", "Gray"],
-    "sizes": ["13-inch", "15-inch"],
-    "tags": ["accessory"]
-  },
-  {
-    "id": 4,
-    "name": "Premium Notebook",
-    "price": 399,
-    "image": "https://via.placeholder.com/150/f6d674?text=Notebook",
-    "description": "Hardcover, 120 pages, recycled paper",
-    "colors": ["Red", "Green"],
-    "sizes": ["A5", "A4"],
-    "tags": ["stationery"]
-  },
-  {
-    "id": 5,
-    "name": "Premium Cotton Hoodie",
-    "price": 1499,
-    "image": "https://via.placeholder.com/150/aaaaaa?text=Hoodie",
-    "description": "Soft fleece hoodie with front pocket and drawstring hood",
-    "colors": ["Black", "Gray"],
-    "sizes": ["S","M", "L","XL","XXL"],
+    "name": "One piece Hoodie",
+    "price": 1199,
+    "images": [
+      "https://i.ibb.co/1tCFDQ3K/onepiecewhite.png",
+      "https://i.ibb.co/HD0KLNx9/onepiecegreen.png"
+    ],
+    "description": "Fabric: 100% cotton, 300 GSM brushed fleece – heavyweight and cozy, for chilly days. Fit: Unisex regular fit – snug around the cuffs and hem with a comfy relaxed feel. Care: Wash inside-out in cold water, dry on low heat. Flip it inside out before ironing.",
+    "colors": ["Black", "White", "Navy Blue", "Green","Red", "Baby Pink","Baby Blue"],
+    "sizes": ["XS","S","M","L","XL","XXL","3XL"],
     "tags": ["hoodie"]
   },
   {
-    "id": 6,
-    "name": "Adjustable Baseball Cap",
-    "price": 1,
-    "image": "https://via.placeholder.com/150/bbbbbb?text=Cap",
-    "description": "Breathable cotton cap with adjustable strap and embroidered logo",
-    "colors": ["Navy", "Black"],
-    "sizes": ["One Size"],
-    "tags": ["cap"]
-  },
-  {
-    "id": 7,
-    "name": "Adjustable Baseball Cap 1",
-    "price": 1,
-    "image": "https://via.placeholder.com/150/bbbbbb?text=Cap",
-    "description": "Breathable cotton cap with adjustable strap and embroidered logo",
-    "colors": ["Navy", "Black"],
-    "sizes": ["One Size"],
-    "tags": ["cap"]
+    "id": 2,
+    "name": "Luffy Gear 1 to 5",
+    "price": 1199,
+    "images": [
+      "https://i.ibb.co/zHW18CfH/mockup.png",
+      "https://i.ibb.co/B5QDfSq6/mockup1.png"
+    ],
+    "description": "Fabric: 100% cotton, 300 GSM brushed fleece – heavyweight and cozy, for chilly days. Fit: Unisex regular fit – snug around the cuffs and hem with a comfy relaxed feel. Care: Wash inside-out in cold water, dry on low heat. Flip it inside out before ironing.",
+    "colors": ["Black", "White", "Navy Blue", "Green","Red", "Baby Pink","Baby Blue"],
+    "sizes": ["XS","S","M","L","XL","XXL","3XL"],
+    "tags": ["hoodie"]
   }
 ]
