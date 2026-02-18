@@ -1,341 +1,353 @@
 <!-- templates/product_detail.html -->
 {% extends "base.html" %}
 {% block title %}{{ product.name }}{% endblock %}
-
 {% block content %}
 <div class="max-w-6xl mx-auto">
-  <!-- Breadcrumb -->
-  <nav class="mb-6 text-sm">
-    <a href="{{ url_for('products') }}" class="text-primary hover:underline">Home</a>
-    <span class="mx-2 text-gray-400">/</span>
-    <a href="{{ url_for('products') }}" class="text-primary hover:underline">Products</a>
-    <span class="mx-2 text-gray-400">/</span>
-    <span class="text-gray-600">{{ product.name }}</span>
-  </nav>
+    <!-- Breadcrumb -->
+    <nav class="mb-6 text-sm">
+        <a href="{{ url_for('products') }}" class="text-primary hover:underline">Home</a>
+        <span class="mx-2 text-gray-400">/</span>
+        <a href="{{ url_for('products') }}" class="text-primary hover:underline">Products</a>
+        <span class="mx-2 text-gray-400">/</span>
+        <span class="text-gray-600">{{ product.name }}</span>
+    </nav>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 bg-white rounded-xl shadow-lg p-6 md:p-10">
-    
-    <!-- LEFT COLUMN: Image Gallery -->
-    <div class="space-y-4">
-      <!-- Main Large Image -->
-      <div class="flex items-center justify-center bg-gray-50 rounded-lg p-4 md:p-8 border border-gray-100 overflow-hidden">
-        <img 
-          id="main-product-image" 
-          src="{{ product.images[0] if product.images else product.image }}" 
-          alt="{{ product.name }}" 
-          class="max-w-full max-h-[500px] object-contain transition-opacity duration-300 ease-in-out"
-        >
-      </div>
-
-      <!-- Thumbnail Grid (Only show if multiple images exist) -->
-      {% if product.images and product.images|length > 1 %}
-      <div class="grid grid-cols-4 gap-3">
-        {% for img in product.images %}
-        <button 
-          type="button"
-          class="thumbnail-btn border-2 border-transparent rounded-lg overflow-hidden hover:border-primary focus:outline-none focus:border-primary transition-all"
-          onclick="changeMainImage('{{ img }}', this)"
-        >
-          <img src="{{ img }}" alt="Thumbnail {{ loop.index }}" class="w-full h-20 object-cover">
-        </button>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-
-    <!-- RIGHT COLUMN: Product Details -->
-    <div class="space-y-6">
-      <div>
-        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{{ product.name }}</h1>
-        <p class="text-gray-600 leading-relaxed">{{ product.description }}</p>
-      </div>
-
-      <div class="border-t border-b border-gray-200 py-4">
-        <span class="text-4xl font-bold text-primary">₹{{ product.price }}</span>
-      </div>
-
-      <!-- Color Selector -->
-      {% if product.colors and product.colors|length > 0 %}
-      <div>
-        <label class="block text-gray-700 font-semibold mb-3">Color:</label>
-        <div class="flex flex-wrap gap-2">
-          {% for color in product.colors %}
-          <button
-            type="button"
-            class="color-btn border rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
-            data-color="{{ color | trim }}"
-            {% if loop.first %}data-selected="true"{% endif %}
-          >
-            {{ color | trim }}
-          </button>
-          {% endfor %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 bg-white rounded-xl shadow-lg p-6 md:p-10">
+        <!-- LEFT COLUMN: Image Gallery -->
+        <div class="space-y-4">
+            <!-- Main Large Image -->
+            <div class="flex items-center justify-center bg-gray-50 rounded-lg p-4 md:p-8 border border-gray-100 overflow-hidden">
+                <img
+                    id="main-product-image"
+                    src="{{ product.images[0] if product.images else product.image }}"
+                    alt="{{ product.name }}"
+                    class="max-w-full max-h-[500px] object-contain transition-opacity duration-300 ease-in-out"
+                >
+            </div>
+            <!-- Thumbnail Grid (Only show if multiple images exist) -->
+            {% if product.images and product.images|length > 1 %}
+            <div class="grid grid-cols-4 gap-3">
+                {% for img in product.images %}
+                <button
+                    type="button"
+                    class="thumbnail-btn border-2 border-transparent rounded-lg overflow-hidden hover:border-primary focus:outline-none focus:border-primary transition-all"
+                    onclick="changeMainImage('{{ img }}', this)"
+                >
+                    <img src="{{ img }}" alt="Thumbnail {{ loop.index }}" class="w-full h-20 object-cover">
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
-      </div>
-      {% endif %}
 
-      <!-- Size Selector -->
-      {% if product.sizes and product.sizes|length > 0 %}
-      <div>
-        <label class="block text-gray-700 font-semibold mb-3">Size:</label>
-        <div class="flex flex-wrap gap-2">
-          {% for size in product.sizes %}
-          <button
-            type="button"
-            class="size-btn border rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
-            data-size="{{ size | trim }}"
-            {% if loop.first %}data-selected="true"{% endif %}
-          >
-            {{ size | trim }}
-          </button>
-          {% endfor %}
-        </div>
-      </div>
-      {% endif %}
+        <!-- RIGHT COLUMN: Product Details -->
+        <div class="space-y-6">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{{ product.name }}</h1>
+                <p class="text-gray-600 leading-relaxed">{{ product.description }}</p>
+            </div>
+            <div class="border-t border-b border-gray-200 py-4">
+                <span class="text-4xl font-bold text-primary">₹{{ product.price }}</span>
+            </div>
 
-      <!-- Quantity -->
-      <div>
-        <label class="block text-gray-700 font-semibold mb-3">Quantity:</label>
-        <div class="flex items-center space-x-4">
-          <div class="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden">
+            <!-- Color Selector -->
+            {% if product.colors and product.colors|length > 0 %}
+            <div>
+                <label class="block text-gray-700 font-semibold mb-3">Color:</label>
+                <div class="flex flex-wrap gap-2">
+                    {% for color in product.colors %}
+                    <button
+                        type="button"
+                        class="color-btn border rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
+                        data-color="{{ color | trim }}"
+                        {% if loop.first %}data-selected="true"{% endif %}
+                    >
+                        {{ color | trim }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Size Selector -->
+            {% if product.sizes and product.sizes|length > 0 %}
+            <div>
+                <label class="block text-gray-700 font-semibold mb-3">Size:</label>
+                <div class="flex flex-wrap gap-2">
+                    {% for size in product.sizes %}
+                    <button
+                        type="button"
+                        class="size-btn border rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
+                        data-size="{{ size | trim }}"
+                        {% if loop.first %}data-selected="true"{% endif %}
+                    >
+                        {{ size | trim }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quantity -->
+            <div>
+                <label class="block text-gray-700 font-semibold mb-3">Quantity:</label>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden">
+                        <button
+                            id="dec-btn"
+                            class="px-4 py-3 bg-gray-100 hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled
+                        >
+                            <i class="fas fa-minus text-gray-700"></i>
+                        </button>
+                        <span id="quantity-display" class="px-6 py-3 font-bold text-lg min-w-[3rem] text-center">1</span>
+                        <button id="inc-btn" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 transition">
+                            <i class="fas fa-plus text-primary"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <button
-              id="dec-btn"
-              class="px-4 py-3 bg-gray-100 hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled
+                id="add-to-cart-btn"
+                class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-4 rounded-lg transition transform hover:scale-[1.02] shadow-md flex items-center justify-center"
             >
-              <i class="fas fa-minus text-gray-700"></i>
+                <i class="fas fa-shopping-cart mr-2"></i>Add to Cart
             </button>
-            <span id="quantity-display" class="px-6 py-3 font-bold text-lg min-w-[3rem] text-center">1</span>
-            <button id="inc-btn" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 transition">
-              <i class="fas fa-plus text-primary"></i>
-            </button>
-          </div>
-        </div>
-      </div>
 
-      <button
-        id="add-to-cart-btn"
-        class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-4 rounded-lg transition transform hover:scale-[1.02] shadow-md flex items-center justify-center"
-      >
-        <i class="fas fa-shopping-cart mr-2"></i>Add to Cart
-      </button>
-      
-      <div class="mt-4 text-xs text-gray-500 flex items-center justify-center gap-4">
-        <span><i class="fas fa-truck mr-1"></i> Free Shipping</span>
-        <span><i class="fas fa-shield-alt mr-1"></i> Secure Payment</span>
-      </div>
+            <div class="mt-4 text-xs text-gray-500 flex items-center justify-center gap-4">
+                <span><i class="fas fa-truck mr-1"></i> Free Shipping</span>
+                <span><i class="fas fa-shield-alt mr-1"></i> Secure Payment</span>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const productId = {{ product.id }};
-  let qty = 1;
-  let isInCart = false;
-  let selectedColor = null;
-  let selectedSize = null;
-  
-  const qtyDisplay = document.getElementById('quantity-display');
-  const decBtn = document.getElementById('dec-btn');
-  const incBtn = document.getElementById('inc-btn');
-  const addToCartBtn = document.getElementById('add-to-cart-btn');
-  const mainImage = document.getElementById('main-product-image');
-
-  // Initialize selections
-  const colorButtons = document.querySelectorAll('.color-btn');
-  const sizeButtons = document.querySelectorAll('.size-btn');
-
-  if (colorButtons.length > 0) {
-    selectedColor = colorButtons[0].dataset.color;
-    colorButtons[0].classList.add('bg-indigo-100', 'border-indigo-600', 'text-indigo-700');
-  }
-  if (sizeButtons.length > 0) {
-    selectedSize = sizeButtons[0].dataset.size;
-    sizeButtons[0].classList.add('bg-indigo-100', 'border-indigo-600', 'text-indigo-700');
-  }
-
-  // --- IMAGE GALLERY LOGIC ---
-  window.changeMainImage = function(src, thumbnailBtn) {
-    // Fade out effect
-    mainImage.style.opacity = '0.5';
+    // FIX: Use |tojson to safely output the string ID with quotes
+    // This prevents syntax errors if the ID contains letters (e.g., "pbc_...")
+    const productId = {{ product.id | tojson }}; 
     
-    setTimeout(() => {
-      mainImage.src = src;
-      mainImage.style.opacity = '1';
-    }, 150);
+    let qty = 1;
+    let isInCart = false;
+    let selectedColor = null;
+    let selectedSize = null;
 
-    // Update active state on thumbnails
-    document.querySelectorAll('.thumbnail-btn').forEach(btn => {
-      btn.classList.remove('border-primary', 'ring-2', 'ring-primary/20');
-      btn.classList.add('border-transparent');
-    });
-    
-    thumbnailBtn.classList.remove('border-transparent');
-    thumbnailBtn.classList.add('border-primary', 'ring-2', 'ring-primary/20');
-  };
+    const qtyDisplay = document.getElementById('quantity-display');
+    const decBtn = document.getElementById('dec-btn');
+    const incBtn = document.getElementById('inc-btn');
+    const addToCartBtn = document.getElementById('add-to-cart-btn');
+    const mainImage = document.getElementById('main-product-image');
 
-  // Set initial active state for the first thumbnail if it exists
-  const firstThumb = document.querySelector('.thumbnail-btn');
-  if(firstThumb) {
-    firstThumb.classList.add('border-primary', 'ring-2', 'ring-primary/20');
-  }
+    console.log("Product Detail Loaded. ID:", productId);
 
-  // Color selection logic
-  colorButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      colorButtons.forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-600', 'text-indigo-700'));
-      btn.classList.add('bg-indigo-100', 'border-indigo-600', 'text-indigo-700');
-      selectedColor = btn.dataset.color;
-      checkCartStatus();
-    });
-  });
+    // Initialize selections
+    const colorButtons = document.querySelectorAll('.color-btn');
+    const sizeButtons = document.querySelectorAll('.size-btn');
 
-  // Size selection logic
-  sizeButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      sizeButtons.forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-600', 'text-indigo-700'));
-      btn.classList.add('bg-indigo-100', 'border-indigo-600', 'text-indigo-700');
-      selectedSize = btn.dataset.size;
-      checkCartStatus();
-    });
-  });
+    if (colorButtons.length > 0) {
+        selectedColor = colorButtons[0].dataset.color;
+        colorButtons[0].classList.add('bg-indigo-100', 'border-indigo-600', 'text-indigo-700');
+    }
+    if (sizeButtons.length > 0) {
+        selectedSize = sizeButtons[0].dataset.size;
+        sizeButtons[0].classList.add('bg-indigo-100', 'border-indigo-600', 'text-indigo-700');
+    }
 
-  // Build variant object
-  function getSelectedVariant() {
-    const variant = {};
-    if (selectedColor) variant.color = selectedColor;
-    if (selectedSize) variant.size = selectedSize;
-    return Object.keys(variant).length > 0 ? variant : null;
-  }
+    // --- IMAGE GALLERY LOGIC ---
+    window.changeMainImage = function(src, thumbnailBtn) {
+        mainImage.style.opacity = '0.5';
+        setTimeout(() => {
+            mainImage.src = src;
+            mainImage.style.opacity = '1';
+        }, 150);
 
-  // Compare variants safely
-  function variantsMatch(v1, v2) {
-    if (!v1 && !v2) return true;
-    if (!v1 || !v2) return false;
-    return v1.color === v2.color && v1.size === v2.size;
-  }
-
-  // Check if current variant is in cart
-  async function checkCartStatus() {
-    try {
-      const response = await fetch('/api/cart/state');
-      const data = await response.json();
-      if (data.success) {
-        const variant = getSelectedVariant();
-        const cartItem = data.cart.find(item => {
-          return item.id === productId && variantsMatch(item.variant, variant);
+        document.querySelectorAll('.thumbnail-btn').forEach(btn => {
+            btn.classList.remove('border-primary', 'ring-2', 'ring-primary/20');
+            btn.classList.add('border-transparent');
         });
-        if (cartItem) {
-          isInCart = true;
-          qty = cartItem.quantity;
-          qtyDisplay.textContent = qty;
-          decBtn.disabled = qty <= 1;
-          addToCartBtn.innerHTML = '<i class="fas fa-check mr-2"></i>In Cart';
-          addToCartBtn.classList.remove('hover:scale-[1.02]');
+        thumbnailBtn.classList.remove('border-transparent');
+        thumbnailBtn.classList.add('border-primary', 'ring-2', 'ring-primary/20');
+    };
+
+    const firstThumb = document.querySelector('.thumbnail-btn');
+    if(firstThumb) {
+        firstThumb.classList.add('border-primary', 'ring-2', 'ring-primary/20');
+    }
+
+    // Color selection logic
+    colorButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            colorButtons.forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-600', 'text-indigo-700'));
+            btn.classList.add('bg-indigo-100', 'border-indigo-600', 'text-indigo-700');
+            selectedColor = btn.dataset.color;
+            checkCartStatus();
+        });
+    });
+
+    // Size selection logic
+    sizeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            sizeButtons.forEach(b => b.classList.remove('bg-indigo-100', 'border-indigo-600', 'text-indigo-700'));
+            btn.classList.add('bg-indigo-100', 'border-indigo-600', 'text-indigo-700');
+            selectedSize = btn.dataset.size;
+            checkCartStatus();
+        });
+    });
+
+    // Build variant object
+    function getSelectedVariant() {
+        const variant = {};
+        if (selectedColor) variant.color = selectedColor;
+        if (selectedSize) variant.size = selectedSize;
+        return Object.keys(variant).length > 0 ? variant : null;
+    }
+
+    // Compare variants safely
+    function variantsMatch(v1, v2) {
+        if (!v1 && !v2) return true;
+        if (!v1 || !v2) return false;
+        return v1.color === v2.color && v1.size === v2.size;
+    }
+
+    // Check if current variant is in cart
+    async function checkCartStatus() {
+        try {
+            const response = await fetch('/api/cart/state');
+            const data = await response.json();
+            
+            if (data.success) {
+                const variant = getSelectedVariant();
+                
+                // FIX: Ensure both IDs are treated as strings for comparison
+                const cartItem = data.cart.find(item => {
+                    return String(item.id) === String(productId) && variantsMatch(item.variant, variant);
+                });
+
+                if (cartItem) {
+                    isInCart = true;
+                    qty = cartItem.quantity;
+                    qtyDisplay.textContent = qty;
+                    decBtn.disabled = qty <= 1;
+                    addToCartBtn.innerHTML = '<i class="fas fa-check mr-2"></i>In Cart';
+                    addToCartBtn.classList.remove('hover:scale-[1.02]');
+                    console.log("Item found in cart:", cartItem);
+                } else {
+                    isInCart = false;
+                    qty = 1;
+                    qtyDisplay.textContent = qty;
+                    decBtn.disabled = true;
+                    addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i>Add to Cart';
+                    addToCartBtn.classList.add('hover:scale-[1.02]');
+                    console.log("Item NOT in cart. Variant:", variant);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking cart:', error);
+        }
+    }
+
+    // Update quantity (for existing cart items)
+    async function updateQuantity(newQty) {
+        if (!isInCart) {
+            // If not in cart yet, just update local display until they click add
+            qty = newQty;
+            qtyDisplay.textContent = qty;
+            decBtn.disabled = qty <= 1;
+            return true;
+        }
+
+        try {
+            const variant = getSelectedVariant();
+            const response = await fetch('/update-cart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: productId, // Sending String
+                    quantity: newQty,
+                    variant: variant
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                qty = newQty;
+                qtyDisplay.textContent = qty;
+                decBtn.disabled = qty <= 1;
+                if (window.globalCart) window.globalCart.refreshCartState();
+                return true;
+            } else {
+                // If item suddenly disappears from cart (race condition), reset state
+                if (data.message && data.message.includes('not found')) {
+                    isInCart = false;
+                    qty = newQty;
+                    qtyDisplay.textContent = qty;
+                    decBtn.disabled = qty <= 1;
+                    addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i>Add to Cart';
+                    return true;
+                }
+                alert(data.message || 'Failed to update cart');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error updating cart:', error);
+            alert('Failed to update cart');
+            return false;
+        }
+    }
+
+    // Add to cart
+    async function handleAddToCart() {
+        try {
+            const variant = getSelectedVariant();
+            console.log("Adding to cart:", { id: productId, qty: qty, variant: variant });
+
+            const response = await fetch('/api/cart/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: productId, // Sending String
+                    quantity: qty,
+                    variant: variant
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                isInCart = true;
+                addToCartBtn.innerHTML = '<i class="fas fa-check mr-2"></i>In Cart';
+                addToCartBtn.classList.remove('hover:scale-[1.02]');
+                if (window.globalCart) window.globalCart.refreshCartState();
+            } else {
+                alert(data.error || 'Failed to add to cart');
+                console.error("Add to cart error:", data.error);
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            alert('Failed to add to cart');
+        }
+    }
+
+    // Event listeners
+    decBtn.addEventListener('click', async () => {
+        if (qty > 1) await updateQuantity(qty - 1);
+    });
+
+    incBtn.addEventListener('click', async () => {
+        await updateQuantity(qty + 1);
+    });
+
+    addToCartBtn.addEventListener('click', async () => {
+        if (isInCart) {
+            await updateQuantity(qty);
         } else {
-          isInCart = false;
-          qty = 1;
-          qtyDisplay.textContent = qty;
-          decBtn.disabled = true;
-          addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i>Add to Cart';
-          addToCartBtn.classList.add('hover:scale-[1.02]');
+            await handleAddToCart();
         }
-      }
-    } catch (error) {
-      console.error('Error checking cart:', error);
-    }
-  }
+    });
 
-  // Update quantity (for existing cart items)
-  async function updateQuantity(newQty) {
-    if (!isInCart) {
-      qty = newQty;
-      qtyDisplay.textContent = qty;
-      decBtn.disabled = qty <= 1;
-      return true;
-    }
-    try {
-      const variant = getSelectedVariant();
-      const response = await fetch('/update-cart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          product_id: productId,
-          quantity: newQty,
-          variant: variant
-        })
-      });
-      const data = await response.json();
-      if (data.success) {
-        qty = newQty;
-        qtyDisplay.textContent = qty;
-        decBtn.disabled = qty <= 1;
-        if (window.globalCart) window.globalCart.refreshCartState();
-        return true;
-      } else {
-        if (data.message?.includes('not found')) {
-          isInCart = false;
-          qty = newQty;
-          qtyDisplay.textContent = qty;
-          decBtn.disabled = qty <= 1;
-          addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i>Add to Cart';
-          return true;
-        }
-        alert(data.message || 'Failed to update cart');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error updating cart:', error);
-      alert('Failed to update cart');
-      return false;
-    }
-  }
-
-  // Add to cart
-  async function handleAddToCart() {
-    try {
-      const variant = getSelectedVariant();
-      const response = await fetch('/api/cart/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          product_id: productId,
-          quantity: qty,
-          variant: variant
-        })
-      });
-      const data = await response.json();
-      if (data.success) {
-        isInCart = true;
-        addToCartBtn.innerHTML = '<i class="fas fa-check mr-2"></i>In Cart';
-        addToCartBtn.classList.remove('hover:scale-[1.02]');
-        if (window.globalCart) window.globalCart.refreshCartState();
-      } else {
-        alert(data.error || 'Failed to add to cart');
-      }
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      alert('Failed to add to cart');
-    }
-  }
-
-  // Event listeners
-  decBtn.addEventListener('click', async () => {
-    if (qty > 1) await updateQuantity(qty - 1);
-  });
-  incBtn.addEventListener('click', async () => {
-    await updateQuantity(qty + 1);
-  });
-  addToCartBtn.addEventListener('click', async () => {
-    if (isInCart) {
-      await updateQuantity(qty);
-    } else {
-      await handleAddToCart();
-    }
-  });
-
-  // Initial check
-  checkCartStatus();
+    // Initial check
+    checkCartStatus();
 });
 </script>
 {% endblock %}

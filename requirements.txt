@@ -14,3 +14,4 @@ razorpay==1.4.2
 requests==2.32.5
 urllib3==2.6.3
 werkzeug==3.1.5
+pocketbase>=0.15.0
