@@ -4,7 +4,7 @@ from pocketbase import PocketBase
 # ======================
 # POCKETBASE CONFIGURATION
 # ======================
-PB_URL = os.getenv("PB_URL", "http://pocketbase-yco4cwww4c0scwksss4kgk08.93.127.185.52.sslip.io")
+PB_URL = os.getenv("PB_URL", "https://db.arngct.org")
 ADMIN_EMAIL = os.getenv("PB_ADMIN_EMAIL", "ashishrajams@gmail.com")
 ADMIN_PASSWORD = os.getenv("PB_ADMIN_PASSWORD", "Ashishrajams@1")
 COLLECTION_NAME = "products"
@@ -20,8 +20,8 @@ def get_client():
         try:
             if not _client.admins.auth_store.token:
                 _auth_data = _client.admins.auth_with_password(ADMIN_EMAIL, ADMIN_PASSWORD)
-        except Exception as e:
-            print(f"⚠️ PocketBase Auth Warning: {str(e)}")
+        except Exception:
+            pass # Silent fail for auth to keep logs clean
     return _client
 
 def get_all_products():
@@ -43,14 +43,12 @@ def get_all_products():
             for item in response.items:
                 data = vars(item)
                 
-                # FIX: Keep ID as String. Do NOT convert to int or hash.
-                # PocketBase IDs are strings (e.g., "pbc_1234567890abcdef")
                 product = {
-                    'id': str(item.id), 
+                    'id': str(item.id),
                     'name': data.get('name', 'Unknown Product'),
                     'price': float(data.get('price', 0)),
                     'description': data.get('description', '') or '',
-                    'images': normalize_images(data.get('images'), data.get('field')),
+                    'images': normalize_images(data.get('image'), item.id, item.collection_name),
                     'colors': data.get('colors') if isinstance(data.get('colors'), list) else [],
                     'sizes': data.get('sizes') if isinstance(data.get('sizes'), list) else [],
                     'tags': data.get('tags') if isinstance(data.get('tags'), list) else [],
@@ -64,33 +62,34 @@ def get_all_products():
             page += 1
             
         return all_records
-    except Exception as e:
-        print(f"❌ ERROR fetching products from PocketBase: {str(e)}")
+    except Exception:
         return []
 
-def normalize_images(images_data, field_data):
-    """Ensures we always return a list of valid image URLs."""
+def normalize_images(image_field_data, record_id, collection_id):
+    """
+    Converts PocketBase filenames into full HTTPS URLs.
+    No logging included.
+    """
     result = []
-    source = images_data
     
-    if not source and field_data:
-        source = field_data
-        
-    if not source:
+    if not image_field_data:
         return ['/static/placeholder.png']
         
-    if isinstance(source, str):
-        source = [source]
+    if isinstance(image_field_data, str):
+        image_field_data = [image_field_data]
         
-    if isinstance(source, list):
-        for item in source:
-            if isinstance(item, str):
-                url = item.strip()
-                # If it's not a full URL, you might need to construct it here
-                # assuming your PB stores filenames in 'field' and URLs in 'images'
-                if not url.startswith(('http://', 'https://')):
-                    # Skip non-URLs for now unless you have logic to build the full path
-                    continue 
+    if isinstance(image_field_data, list):
+        for filename in image_field_data:
+            if not isinstance(filename, str) or not filename.strip():
+                continue
+                
+            filename = filename.strip()
+            
+            if filename.startswith(('http://', 'https://')):
+                url = filename.replace('http://', 'https://')
                 result.append(url)
+            else:
+                full_url = f"{PB_URL.rstrip('/')}/api/files/{collection_id}/{record_id}/{filename}"
+                result.append(full_url)
                 
     return result if result else ['/static/placeholder.png']
